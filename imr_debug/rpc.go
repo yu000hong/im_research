@@ -1,29 +1,10 @@
-/**
- * Copyright (c) 2014-2015, GoBelieve     
- * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */
-
 package main
+
 import "net/http"
 import "encoding/json"
 import "net/url"
 import "strconv"
 import log "github.com/golang/glog"
-
 
 func WriteHttpObj(data map[string]interface{}, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
@@ -32,7 +13,6 @@ func WriteHttpObj(data map[string]interface{}, w http.ResponseWriter) {
 	b, _ := json.Marshal(obj)
 	w.Write(b)
 }
-
 
 func WriteHttpError(status int, err string, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
@@ -46,36 +26,35 @@ func WriteHttpError(status int, err string, w http.ResponseWriter) {
 	w.Write(b)
 }
 
-
 //获取当前所有在线的用户
 func GetOnlineClients(w http.ResponseWriter, req *http.Request) {
 	clients := GetClientSet()
 
 	type App struct {
-		AppId int64 `json:"appid"`
+		AppId int64   `json:"appid"`
 		Users []int64 `json:"users"`
 	}
-	
+
 	r := make(map[int64]IntSet)
-	for c := range(clients) {
+	for c := range clients {
 		app_users := c.app_route.GetUsers()
-		for appid, users := range(app_users) {
+		for appid, users := range app_users {
 			if _, ok := r[appid]; !ok {
 				r[appid] = NewIntSet()
 			}
 			uids := r[appid]
-			for uid := range(users) {
+			for uid := range users {
 				uids.Add(uid)
 			}
 		}
 	}
 
 	apps := make([]*App, 0, len(r))
-	for appid, users := range(r) {
+	for appid, users := range r {
 		app := &App{}
 		app.AppId = appid
 		app.Users = make([]int64, 0, len(users))
-		for uid := range(users) {
+		for uid := range users {
 			app.Users = append(app.Users, uid)
 		}
 		apps = append(apps, app)

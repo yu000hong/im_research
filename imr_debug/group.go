@@ -1,22 +1,3 @@
-/**
- * Copyright (c) 2014-2015, GoBelieve     
- * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */
-
 package main
 
 import "sync"
@@ -25,10 +6,10 @@ import _ "github.com/go-sql-driver/mysql"
 import log "github.com/golang/glog"
 
 type Group struct {
-	gid     int64
-	appid   int64
-	super   bool //超大群
-	mutex   sync.Mutex
+	gid   int64
+	appid int64
+	super bool //超大群
+	mutex sync.Mutex
 	//key:成员id value:入群时间|(mute<<31)
 	members map[int64]int64
 }
@@ -51,11 +32,9 @@ func NewSuperGroup(gid int64, appid int64, members map[int64]int64) *Group {
 	return group
 }
 
-
 func (group *Group) Members() map[int64]int64 {
 	return group.members
 }
-
 
 func (group *Group) cloneMembers() map[int64]int64 {
 	members := group.members
@@ -65,7 +44,6 @@ func (group *Group) cloneMembers() map[int64]int64 {
 	}
 	return n
 }
-
 
 //修改成员，在副本修改，避免读取时的lock
 func (group *Group) AddMember(uid int64, timestamp int) {
@@ -117,7 +95,7 @@ func (group *Group) GetMemberTimestamp(uid int64) int {
 
 func (group *Group) GetMemberMute(uid int64) bool {
 	t, _ := group.members[uid]
-	return int((t >> 31)&0x01) != 0
+	return int((t>>31)&0x01) != 0
 }
 
 func (group *Group) IsEmpty() bool {
@@ -186,7 +164,6 @@ ROLLBACK:
 	return false
 }
 
-
 func LoadAllGroup(db *sql.DB) (map[int64]*Group, error) {
 	stmtIns, err := db.Prepare("SELECT id, appid, super FROM `group`")
 	if err != nil {
@@ -234,7 +211,7 @@ func LoadGroupMember(db *sql.DB, group_id int64) (map[int64]int64, error) {
 		var timestamp int64
 		var mute int64
 		rows.Scan(&uid, &timestamp, &mute)
-		members[uid] = timestamp|(mute<<31)
+		members[uid] = timestamp | (mute << 31)
 	}
 	return members, nil
 }
