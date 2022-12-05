@@ -13,74 +13,74 @@ const OFFLINE_DEFAULT_LIMIT = 3000
 const GROUP_OFFLINE_DEFAULT_LIMIT = 0
 
 type StorageConfig struct {
-	rpc_listen          string
-	storage_root        string
-	kefu_appid          int64
-	http_listen_address string
+	rpcListen         string
+	storageRoot       string
+	kefuAppid         int64
+	httpListenAddress string
 
-	sync_listen    string
-	master_address string
-	is_push_system bool
-	group_limit    int //普通群离线消息的数量限制
-	limit          int //离线消息的数量限制
+	syncListen    string
+	masterAddress string
+	isPushSystem  bool
+	groupLimit    int //普通群离线消息的数量限制
+	limit         int //离线消息的数量限制
 }
 
-func get_int(app_cfg map[string]string, key string) int64 {
-	concurrency, present := app_cfg[key]
+func getInt(appCfg map[string]string, key string) int64 {
+	value, present := appCfg[key]
 	if !present {
 		log.Fatalf("key:%s non exist", key)
 	}
-	n, err := strconv.ParseInt(concurrency, 10, 64)
+	n, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
 		log.Fatalf("key:%s is't integer", key)
 	}
 	return n
 }
 
-func get_opt_int(app_cfg map[string]string, key string, default_value int64) int64 {
-	concurrency, present := app_cfg[key]
+func getOptInt(appCfg map[string]string, key string, defaultValue int64) int64 {
+	value, present := appCfg[key]
 	if !present {
-		return default_value
+		return defaultValue
 	}
-	n, err := strconv.ParseInt(concurrency, 10, 64)
+	n, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
 		log.Fatalf("key:%s is't integer", key)
 	}
 	return n
 }
 
-func get_string(app_cfg map[string]string, key string) string {
-	concurrency, present := app_cfg[key]
+func getString(appCfg map[string]string, key string) string {
+	value, present := appCfg[key]
 	if !present {
 		log.Fatalf("key:%s non exist", key)
 	}
-	return concurrency
+	return value
 }
 
-func get_opt_string(app_cfg map[string]string, key string) string {
-	concurrency, present := app_cfg[key]
+func getOptString(appCfg map[string]string, key string) string {
+	value, present := appCfg[key]
 	if !present {
 		return ""
 	}
-	return concurrency
+	return value
 }
 
-func read_storage_cfg(cfg_path string) *StorageConfig {
+func readStorageCfg(cfgPath string) *StorageConfig {
 	config := new(StorageConfig)
-	app_cfg := make(map[string]string)
-	err := cfg.Load(cfg_path, app_cfg)
+	appCfg := make(map[string]string)
+	err := cfg.Load(cfgPath, appCfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	config.rpc_listen = get_string(app_cfg, "rpc_listen")
-	config.http_listen_address = get_opt_string(app_cfg, "http_listen_address")
-	config.storage_root = get_string(app_cfg, "storage_root")
-	config.kefu_appid = get_int(app_cfg, "kefu_appid")
-	config.sync_listen = get_string(app_cfg, "sync_listen")
-	config.master_address = get_opt_string(app_cfg, "master_address")
-	config.is_push_system = get_opt_int(app_cfg, "is_push_system", 0) == 1
-	config.limit = int(get_opt_int(app_cfg, "limit", OFFLINE_DEFAULT_LIMIT))
-	config.group_limit = int(get_opt_int(app_cfg, "group_limit", GROUP_OFFLINE_DEFAULT_LIMIT))
+	config.rpcListen = getString(appCfg, "rpc_listen")
+	config.httpListenAddress = getOptString(appCfg, "http_listen_address")
+	config.storageRoot = getString(appCfg, "storage_root")
+	config.kefuAppid = getInt(appCfg, "kefu_appid")
+	config.syncListen = getString(appCfg, "sync_listen")
+	config.masterAddress = getOptString(appCfg, "master_address")
+	config.isPushSystem = getOptInt(appCfg, "is_push_system", 0) == 1
+	config.limit = int(getOptInt(appCfg, "limit", OFFLINE_DEFAULT_LIMIT))
+	config.groupLimit = int(getOptInt(appCfg, "group_limit", GROUP_OFFLINE_DEFAULT_LIMIT))
 	return config
 }

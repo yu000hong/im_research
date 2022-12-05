@@ -92,7 +92,7 @@ func (storage *PeerStorage) SetLastMessageID(appid int64, receiver int64, last_i
 }
 
 //获取所有消息id大于sync_msgid的消息,
-//group_limit&limit:0 表示无限制
+//groupLimit&limit:0 表示无限制
 //消息超过group_limit后，只获取点对点消息
 //总消息数限制在limit
 func (storage *PeerStorage) LoadHistoryMessages(appid int64, receiver int64, sync_msgid int64, group_limit int, limit int) ([]*EMessage, int64) {
@@ -251,7 +251,7 @@ func (client *PeerStorage) isSender(msg *Message, appid int64, uid int64) bool {
 
 	if msg.cmd == MSG_CUSTOMER_SUPPORT {
 		m := msg.body.(*CustomerMessage)
-		if config.kefu_appid == appid &&
+		if config.kefuAppid == appid &&
 			m.seller_id == uid {
 			return true
 		}

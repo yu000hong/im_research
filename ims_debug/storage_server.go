@@ -62,7 +62,7 @@ func handle_sync_client(conn *net.TCPConn) {
 }
 
 func ListenSyncClient() {
-	Listen(handle_sync_client, config.sync_listen)
+	Listen(handle_sync_client, config.syncListen)
 }
 
 // Signal handler
@@ -161,7 +161,7 @@ func ListenRPCClient() {
 	dispatcher.AddFunc("GetLatestMessage", GetLatestMessage)
 
 	s := &gorpc.Server{
-		Addr:    config.rpc_listen,
+		Addr:    config.rpcListen,
 		Handler: dispatcher.NewHandlerFunc(),
 	}
 
@@ -181,18 +181,18 @@ func main() {
 		return
 	}
 
-	config = read_storage_cfg(flag.Args()[0])
+	config = readStorageCfg(flag.Args()[0])
 	log.Infof("rpc listen:%s storage root:%s sync listen:%s master address:%s is push system:%t group limit:%d offline message limit:%d\n",
-		config.rpc_listen, config.storage_root, config.sync_listen,
-		config.master_address, config.is_push_system, config.group_limit, config.limit)
-	log.Infof("http listen address:%s", config.http_listen_address)
+		config.rpcListen, config.storageRoot, config.syncListen,
+		config.masterAddress, config.isPushSystem, config.groupLimit, config.limit)
+	log.Infof("http listen address:%s", config.httpListenAddress)
 
-	storage = NewStorage(config.storage_root)
+	storage = NewStorage(config.storageRoot)
 
 	master = NewMaster()
 	master.Start()
-	if len(config.master_address) > 0 {
-		slaver := NewSlaver(config.master_address)
+	if len(config.masterAddress) > 0 {
+		slaver := NewSlaver(config.masterAddress)
 		slaver.Start()
 	}
 
@@ -201,8 +201,8 @@ func main() {
 	go FlushIndexLoop()
 	go waitSignal()
 
-	if len(config.http_listen_address) > 0 {
-		go StartHttpServer(config.http_listen_address)
+	if len(config.httpListenAddress) > 0 {
+		go StartHttpServer(config.httpListenAddress)
 	}
 
 	go ListenSyncClient()
