@@ -1,22 +1,3 @@
-/**
- * Copyright (c) 2014-2015, GoBelieve     
- * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */
-
 package main
 
 import "io"
@@ -37,15 +18,16 @@ const MSG_HEADER_SIZE = 12
 
 var message_descriptions map[int]string = make(map[int]string)
 
-type MessageCreator func()IMessage
+type MessageCreator func() IMessage
+
 var message_creators map[int]MessageCreator = make(map[int]MessageCreator)
 
-type VersionMessageCreator func()IVersionMessage
+type VersionMessageCreator func() IVersionMessage
+
 var vmessage_creators map[int]VersionMessageCreator = make(map[int]VersionMessageCreator)
 
 //true client->server
-var external_messages [256]bool;
-
+var external_messages [256]bool
 
 func WriteHeader(len int32, seq int32, cmd byte, version byte, flag byte, buffer io.Writer) {
 	binary.Write(buffer, binary.BigEndian, len)
@@ -108,7 +90,7 @@ func ReceiveLimitMessage(conn io.Reader, limit_size int, external bool) *Message
 		log.Warning("invalid external message cmd:", Command(cmd))
 		return nil
 	}
-	
+
 	buff = make([]byte, length)
 	_, err = io.ReadFull(conn, buff)
 	if err != nil {
@@ -129,7 +111,6 @@ func ReceiveLimitMessage(conn io.Reader, limit_size int, external bool) *Message
 	return message
 }
 
-
 func ReceiveMessage(conn io.Reader) *Message {
 	return ReceiveLimitMessage(conn, 32*1024, false)
 }
@@ -143,5 +124,3 @@ func ReceiveClientMessage(conn io.Reader) *Message {
 func ReceiveStorageSyncMessage(conn io.Reader) *Message {
 	return ReceiveLimitMessage(conn, 32*1024*1024, false)
 }
-
-
