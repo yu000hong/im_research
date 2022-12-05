@@ -43,46 +43,46 @@ const MSG_OFFLINE = 254
 const MSG_ACK_IN = 255
 
 func init() {
-	message_creators[MSG_SAVE_AND_ENQUEUE] = func() IMessage { return new(SAEMessage) }
-	message_creators[MSG_DEQUEUE] = func() IMessage { return new(DQMessage) }
-	message_creators[MSG_LOAD_OFFLINE] = func() IMessage { return new(LoadOffline) }
-	message_creators[MSG_LOAD_GROUP_OFFLINE] = func() IMessage { return new(LoadGroupOffline) }
-	message_creators[MSG_RESULT] = func() IMessage { return new(MessageResult) }
-	message_creators[MSG_LOAD_LATEST] = func() IMessage { return new(LoadLatest) }
-	message_creators[MSG_LOAD_HISTORY] = func() IMessage { return new(LoadHistory) }
-	message_creators[MSG_SAVE_AND_ENQUEUE_GROUP] = func() IMessage { return new(SAEMessage) }
-	message_creators[MSG_DEQUEUE_GROUP] = func() IMessage { return new(DQGroupMessage) }
-	message_creators[MSG_GET_OFFLINE_COUNT] = func() IMessage { return new(LoadOffline) }
-	message_creators[MSG_GET_GROUP_OFFLINE_COUNT] = func() IMessage { return new(LoadGroupOffline) }
+	messageCreators[MSG_SAVE_AND_ENQUEUE] = func() IMessage { return new(SAEMessage) }
+	messageCreators[MSG_DEQUEUE] = func() IMessage { return new(DQMessage) }
+	messageCreators[MSG_LOAD_OFFLINE] = func() IMessage { return new(LoadOffline) }
+	messageCreators[MSG_LOAD_GROUP_OFFLINE] = func() IMessage { return new(LoadGroupOffline) }
+	messageCreators[MSG_RESULT] = func() IMessage { return new(MessageResult) }
+	messageCreators[MSG_LOAD_LATEST] = func() IMessage { return new(LoadLatest) }
+	messageCreators[MSG_LOAD_HISTORY] = func() IMessage { return new(LoadHistory) }
+	messageCreators[MSG_SAVE_AND_ENQUEUE_GROUP] = func() IMessage { return new(SAEMessage) }
+	messageCreators[MSG_DEQUEUE_GROUP] = func() IMessage { return new(DQGroupMessage) }
+	messageCreators[MSG_GET_OFFLINE_COUNT] = func() IMessage { return new(LoadOffline) }
+	messageCreators[MSG_GET_GROUP_OFFLINE_COUNT] = func() IMessage { return new(LoadGroupOffline) }
 
-	message_creators[MSG_OFFLINE_V2] = func() IMessage { return new(OfflineMessage2) }
-	message_creators[MSG_PENDING_GROUP_MESSAGE] = func() IMessage { return new(PendingGroupMessage) }
-	message_creators[MSG_GROUP_IM_LIST] = func() IMessage { return new(GroupOfflineMessage) }
-	message_creators[MSG_GROUP_ACK_IN] = func() IMessage { return new(GroupOfflineMessage) }
+	messageCreators[MSG_OFFLINE_V2] = func() IMessage { return new(OfflineMessage2) }
+	messageCreators[MSG_PENDING_GROUP_MESSAGE] = func() IMessage { return new(PendingGroupMessage) }
+	messageCreators[MSG_GROUP_IM_LIST] = func() IMessage { return new(GroupOfflineMessage) }
+	messageCreators[MSG_GROUP_ACK_IN] = func() IMessage { return new(GroupOfflineMessage) }
 
-	message_creators[MSG_OFFLINE] = func() IMessage { return new(OfflineMessage) }
-	message_creators[MSG_ACK_IN] = func() IMessage { return new(MessageACKIn) }
+	messageCreators[MSG_OFFLINE] = func() IMessage { return new(OfflineMessage) }
+	messageCreators[MSG_ACK_IN] = func() IMessage { return new(MessageACKIn) }
 
-	message_creators[MSG_STORAGE_SYNC_BEGIN] = func() IMessage { return new(SyncCursor) }
-	message_creators[MSG_STORAGE_SYNC_MESSAGE] = func() IMessage { return new(EMessage) }
-	message_creators[MSG_STORAGE_SYNC_MESSAGE_BATCH] = func() IMessage { return new(MessageBatch) }
+	messageCreators[MSG_STORAGE_SYNC_BEGIN] = func() IMessage { return new(SyncCursor) }
+	messageCreators[MSG_STORAGE_SYNC_MESSAGE] = func() IMessage { return new(EMessage) }
+	messageCreators[MSG_STORAGE_SYNC_MESSAGE_BATCH] = func() IMessage { return new(MessageBatch) }
 
-	message_descriptions[MSG_SAVE_AND_ENQUEUE] = "MSG_SAVE_AND_ENQUEUE"
-	message_descriptions[MSG_DEQUEUE] = "MSG_DEQUEUE"
-	message_descriptions[MSG_LOAD_OFFLINE] = "MSG_LOAD_OFFLINE"
-	message_descriptions[MSG_RESULT] = "MSG_RESULT"
-	message_descriptions[MSG_LOAD_LATEST] = "MSG_LOAD_LATEST"
-	message_descriptions[MSG_LOAD_HISTORY] = "MSG_LOAD_HISTORY"
-	message_descriptions[MSG_SAVE_AND_ENQUEUE_GROUP] = "MSG_SAVE_AND_ENQUEUE_GROUP"
-	message_descriptions[MSG_DEQUEUE_GROUP] = "MSG_DEQUEUE_GROUP"
+	messageDescriptions[MSG_SAVE_AND_ENQUEUE] = "MSG_SAVE_AND_ENQUEUE"
+	messageDescriptions[MSG_DEQUEUE] = "MSG_DEQUEUE"
+	messageDescriptions[MSG_LOAD_OFFLINE] = "MSG_LOAD_OFFLINE"
+	messageDescriptions[MSG_RESULT] = "MSG_RESULT"
+	messageDescriptions[MSG_LOAD_LATEST] = "MSG_LOAD_LATEST"
+	messageDescriptions[MSG_LOAD_HISTORY] = "MSG_LOAD_HISTORY"
+	messageDescriptions[MSG_SAVE_AND_ENQUEUE_GROUP] = "MSG_SAVE_AND_ENQUEUE_GROUP"
+	messageDescriptions[MSG_DEQUEUE_GROUP] = "MSG_DEQUEUE_GROUP"
 
-	message_descriptions[MSG_STORAGE_SYNC_BEGIN] = "MSG_STORAGE_SYNC_BEGIN"
-	message_descriptions[MSG_STORAGE_SYNC_MESSAGE] = "MSG_STORAGE_SYNC_MESSAGE"
-	message_descriptions[MSG_STORAGE_SYNC_MESSAGE_BATCH] = "MSG_STORAGE_SYNC_MESSAGE_BATCH"
+	messageDescriptions[MSG_STORAGE_SYNC_BEGIN] = "MSG_STORAGE_SYNC_BEGIN"
+	messageDescriptions[MSG_STORAGE_SYNC_MESSAGE] = "MSG_STORAGE_SYNC_MESSAGE"
+	messageDescriptions[MSG_STORAGE_SYNC_MESSAGE_BATCH] = "MSG_STORAGE_SYNC_MESSAGE_BATCH"
 
-	message_descriptions[MSG_OFFLINE_V2] = "MSG_OFFLINE_V2"
-	message_descriptions[MSG_PENDING_GROUP_MESSAGE] = "MSG_PENDING_GROUP_MESSAGE"
-	message_descriptions[MSG_GROUP_IM_LIST] = "MSG_GROUP_IM_LIST"
+	messageDescriptions[MSG_OFFLINE_V2] = "MSG_OFFLINE_V2"
+	messageDescriptions[MSG_PENDING_GROUP_MESSAGE] = "MSG_PENDING_GROUP_MESSAGE"
+	messageDescriptions[MSG_GROUP_IM_LIST] = "MSG_GROUP_IM_LIST"
 
 }
 

@@ -16,18 +16,18 @@ const DEFAULT_VERSION = 1
 
 const MSG_HEADER_SIZE = 12
 
-var message_descriptions map[int]string = make(map[int]string)
+var messageDescriptions map[int]string = make(map[int]string)
 
 type MessageCreator func() IMessage
 
-var message_creators map[int]MessageCreator = make(map[int]MessageCreator)
+var messageCreators map[int]MessageCreator = make(map[int]MessageCreator)
 
 type VersionMessageCreator func() IVersionMessage
 
-var vmessage_creators map[int]VersionMessageCreator = make(map[int]VersionMessageCreator)
+var vmessageCreators map[int]VersionMessageCreator = make(map[int]VersionMessageCreator)
 
 //true client->server
-var external_messages [256]bool
+var externalMessages [256]bool
 
 func WriteHeader(len int32, seq int32, cmd byte, version byte, flag byte, buffer io.Writer) {
 	binary.Write(buffer, binary.BigEndian, len)
@@ -86,7 +86,7 @@ func ReceiveLimitMessage(conn io.Reader, limit_size int, external bool) *Message
 
 	//0 <= cmd <= 255
 	//收到客户端非法消息，断开链接
-	if external && !external_messages[cmd] {
+	if external && !externalMessages[cmd] {
 		log.Warning("invalid external message cmd:", Command(cmd))
 		return nil
 	}

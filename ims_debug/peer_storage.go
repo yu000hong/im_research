@@ -243,8 +243,8 @@ func (client *PeerStorage) isSender(msg *Message, appid int64, uid int64) bool {
 
 	if msg.cmd == MSG_CUSTOMER {
 		m := msg.body.(*CustomerMessage)
-		if m.customer_appid == appid &&
-			m.customer_id == uid {
+		if m.customerAppid == appid &&
+			m.customerId == uid {
 			return true
 		}
 	}
@@ -252,7 +252,7 @@ func (client *PeerStorage) isSender(msg *Message, appid int64, uid int64) bool {
 	if msg.cmd == MSG_CUSTOMER_SUPPORT {
 		m := msg.body.(*CustomerMessage)
 		if config.kefuAppid == appid &&
-			m.seller_id == uid {
+			m.sellerId == uid {
 			return true
 		}
 	}
