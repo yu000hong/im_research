@@ -1,22 +1,3 @@
-/**
- * Copyright (c) 2014-2015, GoBelieve     
- * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */
-
 package main
 
 import "os"
@@ -28,8 +9,6 @@ import "encoding/binary"
 import "sync/atomic"
 import log "github.com/golang/glog"
 
-
-
 const HEADER_SIZE = 32
 const MAGIC = 0x494d494d
 const F_VERSION = 1 << 16 //1.0
@@ -37,16 +16,16 @@ const F_VERSION = 1 << 16 //1.0
 //后台发送普通群消息
 //普通群消息首先保存到临时文件中，之后按照保存到文件中的顺序依次派发
 type GroupMessageDeliver struct {
-	root                string
-	mutex               sync.Mutex //写文件的锁
-	file                *os.File
-	
-	cursor_file         *os.File //不会被并发访问
-	
+	root  string
+	mutex sync.Mutex //写文件的锁
+	file  *os.File
+
+	cursor_file *os.File //不会被并发访问
+
 	latest_msgid        int64 //最近保存的消息id
 	latest_sended_msgid int64 //最近发送出去的消息id
 
-	wt     chan int64	 //通知有新消息等待发送
+	wt chan int64 //通知有新消息等待发送
 }
 
 func NewGroupMessageDeliver(root string) *GroupMessageDeliver {
@@ -63,7 +42,7 @@ func NewGroupMessageDeliver(root string) *GroupMessageDeliver {
 	}
 
 	storage.wt = make(chan int64, 10)
-	
+
 	storage.openWriteFile()
 	storage.openCursorFile()
 	storage.readLatestMessageID()
@@ -90,7 +69,7 @@ func (storage *GroupMessageDeliver) openCursorFile() {
 		file_size = 0
 	}
 
-	var cursor int64	
+	var cursor int64
 	if file_size == 0 {
 		err = binary.Write(file, binary.BigEndian, cursor)
 		if err != nil {
@@ -197,7 +176,7 @@ func (storage *GroupMessageDeliver) ReadMessage(file *os.File) *Message {
 		log.Info("read file err:", err)
 		return nil
 	}
-	
+
 	msg := ReceiveMessage(file)
 	if msg == nil {
 		return msg
@@ -208,13 +187,13 @@ func (storage *GroupMessageDeliver) ReadMessage(file *os.File) *Message {
 		log.Info("read file err:", err)
 		return nil
 	}
-	
+
 	err = binary.Read(file, binary.BigEndian, &magic)
 	if err != nil {
 		log.Info("read file err:", err)
 		return nil
 	}
-	
+
 	if magic != MAGIC {
 		log.Warning("magic err:", magic)
 		return nil
@@ -262,7 +241,7 @@ func (storage *GroupMessageDeliver) WriteHeader(file *os.File) {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	
+
 	pad := make([]byte, HEADER_SIZE-8)
 	n, err := file.Write(pad)
 	if err != nil || n != (HEADER_SIZE-8) {
@@ -270,21 +249,20 @@ func (storage *GroupMessageDeliver) WriteHeader(file *os.File) {
 	}
 }
 
-
 //save without lock
 func (storage *GroupMessageDeliver) saveMessage(msg *Message) int64 {
 	msgid, err := storage.file.Seek(0, os.SEEK_END)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	
+
 	buffer := new(bytes.Buffer)
 	binary.Write(buffer, binary.BigEndian, int32(MAGIC))
 
 	body := msg.ToData()
 	var msg_len int32 = MSG_HEADER_SIZE + int32(len(body))
 	binary.Write(buffer, binary.BigEndian, msg_len)
-	
+
 	WriteHeader(int32(len(body)), int32(msg.seq), byte(msg.cmd),
 		byte(msg.version), byte(msg.flag), buffer)
 	buffer.Write(body)
@@ -303,7 +281,7 @@ func (storage *GroupMessageDeliver) saveMessage(msg *Message) int64 {
 
 	log.Info("save message:", Command(msg.cmd), " ", msgid)
 	return msgid
-	
+
 }
 
 func (storage *GroupMessageDeliver) SaveMessage(msg *Message) int64 {
@@ -320,7 +298,6 @@ func (storage *GroupMessageDeliver) SaveMessage(msg *Message) int64 {
 	return msgid
 }
 
-
 func (storage *GroupMessageDeliver) openReadFile() *os.File {
 	//open file readonly mode
 	path := fmt.Sprintf("%s/pending_group_messages", storage.root)
@@ -332,7 +309,6 @@ func (storage *GroupMessageDeliver) openReadFile() *os.File {
 	}
 	return file
 }
-
 
 //device_ID 发送者的设备ID
 func (storage *GroupMessageDeliver) sendMessage(appid int64, uid int64, sender int64, device_ID int64, msg *Message) bool {
@@ -350,12 +326,12 @@ func (storage *GroupMessageDeliver) sendMessage(appid int64, uid int64, sender i
 		return false
 	}
 
-	for c, _ := range(clients) {
+	for c, _ := range clients {
 		//不再发送给自己
 		if c.device_ID == device_ID && sender == uid {
 			continue
 		}
-	
+
 		c.EnqueueMessage(msg)
 	}
 
@@ -364,11 +340,11 @@ func (storage *GroupMessageDeliver) sendMessage(appid int64, uid int64, sender i
 
 func (storage *GroupMessageDeliver) sendGroupMessage(gm *PendingGroupMessage) bool {
 	msg := &IMMessage{sender: gm.sender, receiver: gm.gid, timestamp: gm.timestamp, content: gm.content}
-	m := &Message{cmd: MSG_GROUP_IM, version:DEFAULT_VERSION, body: msg}
-	
+	m := &Message{cmd: MSG_GROUP_IM, version: DEFAULT_VERSION, body: msg}
+
 	members := gm.members
 	for _, member := range members {
-		
+
 		msgid, err := SaveMessage(gm.appid, member, gm.device_ID, m)
 		if err != nil {
 			log.Errorf("save group member message:%d %d err:%s", err, msg.sender, msg.receiver)
@@ -378,7 +354,7 @@ func (storage *GroupMessageDeliver) sendGroupMessage(gm *PendingGroupMessage) bo
 		if msg.sender != member {
 			PushMessage(gm.appid, member, m)
 		}
-		notify := &Message{cmd:MSG_SYNC_NOTIFY, body:&SyncKey{sync_key:msgid}}
+		notify := &Message{cmd: MSG_SYNC_NOTIFY, body: &SyncKey{sync_key: msgid}}
 		storage.sendMessage(gm.appid, member, gm.sender, gm.device_ID, notify)
 	}
 
@@ -395,7 +371,7 @@ func (storage *GroupMessageDeliver) sendPendingMessage() {
 	if offset == 0 {
 		offset = HEADER_SIZE
 	}
-	
+
 	_, err := file.Seek(offset, os.SEEK_SET)
 	if err != nil {
 		log.Error("seek file err:", err)
@@ -447,7 +423,7 @@ func (storage *GroupMessageDeliver) truncateFile() {
 func (storage *GroupMessageDeliver) flushPendingMessage() {
 	latest_msgid := atomic.LoadInt64(&storage.latest_msgid)
 	log.Infof("flush pending message latest msgid:%d latest sended msgid:%d",
-		latest_msgid, storage.latest_sended_msgid)	
+		latest_msgid, storage.latest_sended_msgid)
 	if latest_msgid > storage.latest_sended_msgid {
 		storage.sendPendingMessage()
 
@@ -465,24 +441,24 @@ func (storage *GroupMessageDeliver) flushPendingMessage() {
 				storage.truncateFile()
 			}
 		}
-	}	
+	}
 }
 
 func (storage *GroupMessageDeliver) run() {
 	//启动时等待2s检查文件
 	log.Info("group message deliver running")
-	
+
 	select {
 	case <-storage.wt:
-		storage.flushPendingMessage()			
+		storage.flushPendingMessage()
 	case <-time.After(time.Second * 2):
 		storage.flushPendingMessage()
 	}
-	
-	for  {
+
+	for {
 		select {
 		case <-storage.wt:
-			storage.flushPendingMessage()			
+			storage.flushPendingMessage()
 		case <-time.After(time.Second * 30):
 			storage.flushPendingMessage()
 		}

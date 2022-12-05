@@ -1,22 +1,3 @@
-/**
- * Copyright (c) 2014-2015, GoBelieve     
- * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */
-
 package main
 
 import "net"
@@ -25,7 +6,7 @@ import "sync"
 import log "github.com/golang/glog"
 
 type Subscriber struct {
-	uids map[int64]int
+	uids     map[int64]int
 	room_ids map[int64]int
 }
 
@@ -37,19 +18,18 @@ func NewSubscriber() *Subscriber {
 }
 
 type Channel struct {
-	addr            string
-	wt              chan *Message
+	addr string
+	wt   chan *Message
 
-	mutex           sync.Mutex
-	subscribers     map[int64]*Subscriber
+	mutex       sync.Mutex
+	subscribers map[int64]*Subscriber
 
-	dispatch        func(*AppMessage)
-	dispatch_group  func(*AppMessage)
-	dispatch_room   func(*AppMessage)
-
+	dispatch       func(*AppMessage)
+	dispatch_group func(*AppMessage)
+	dispatch_room  func(*AppMessage)
 }
 
-func NewChannel(addr string, f func(*AppMessage), 
+func NewChannel(addr string, f func(*AppMessage),
 	f2 func(*AppMessage), f3 func(*AppMessage)) *Channel {
 	channel := new(Channel)
 	channel.subscribers = make(map[int64]*Subscriber)
@@ -74,15 +54,15 @@ func (channel *Channel) AddSubscribe(appid, uid int64, online bool) (int, int) {
 	count := subscriber.uids[uid]
 
 	//低16位表示总数量 高16位表示online的数量
-	c1 := count&0xffff
-	c2 := count>>16&0xffff
+	c1 := count & 0xffff
+	c2 := count >> 16 & 0xffff
 
 	if online {
 		c2 += 1
 	}
 	c1 += 1
-	subscriber.uids[uid] = c2 << 16 | c1
-	return count&0xffff, count>>16&0xffff
+	subscriber.uids[uid] = c2<<16 | c1
+	return count & 0xffff, count >> 16 & 0xffff
 }
 
 //返回删除前的计数
@@ -95,9 +75,9 @@ func (channel *Channel) RemoveSubscribe(appid, uid int64, online bool) (int, int
 	}
 
 	count, ok := subscriber.uids[uid]
-	//低16位表示总数量 高16位表示online的数量	
-	c1 := count&0xffff
-	c2 := count>>16&0xffff
+	//低16位表示总数量 高16位表示online的数量
+	c1 := count & 0xffff
+	c2 := count >> 16 & 0xffff
 	if ok {
 		if online {
 			c2 -= 1
@@ -106,14 +86,14 @@ func (channel *Channel) RemoveSubscribe(appid, uid int64, online bool) (int, int
 				log.Warning("online count < 0")
 			}
 		}
-		c1 -= 1		
+		c1 -= 1
 		if c1 > 0 {
-			subscriber.uids[uid] = c2 << 16 | c1
+			subscriber.uids[uid] = c2<<16 | c1
 		} else {
 			delete(subscriber.uids, uid)
 		}
 	}
-	return count&0xffff, count>>16&0xffff	
+	return count & 0xffff, count >> 16 & 0xffff
 }
 
 func (channel *Channel) GetAllSubscriber() map[int64]*Subscriber {
@@ -142,12 +122,12 @@ func (channel *Channel) Subscribe(appid int64, uid int64, online bool) {
 		if online {
 			on = 1
 		}
-		id := &SubscribeMessage{appid: appid, uid: uid, online:int8(on)}
+		id := &SubscribeMessage{appid: appid, uid: uid, online: int8(on)}
 		msg := &Message{cmd: MSG_SUBSCRIBE, body: id}
 		channel.wt <- msg
 	} else if online_count == 0 && online {
 		//手机端上线
-		id := &SubscribeMessage{appid: appid, uid: uid, online:1}
+		id := &SubscribeMessage{appid: appid, uid: uid, online: 1}
 		msg := &Message{cmd: MSG_SUBSCRIBE, body: id}
 		channel.wt <- msg
 	}
@@ -163,9 +143,9 @@ func (channel *Channel) Unsubscribe(appid int64, uid int64, online bool) {
 		channel.wt <- msg
 	} else if count > 1 && online_count == 1 && online {
 		//手机端断开连接,pc/web端还未断开连接
-		id := &SubscribeMessage{appid: appid, uid: uid, online:0}
+		id := &SubscribeMessage{appid: appid, uid: uid, online: 0}
 		msg := &Message{cmd: MSG_SUBSCRIBE, body: id}
-		channel.wt <- msg		
+		channel.wt <- msg
 	}
 }
 
@@ -255,18 +235,18 @@ func (channel *Channel) PublishRoom(amsg *AppMessage) {
 
 func (channel *Channel) ReSubscribe(conn *net.TCPConn, seq int) int {
 	subs := channel.GetAllSubscriber()
-	for appid, sub := range(subs) {
-		for uid, count := range(sub.uids) {
+	for appid, sub := range subs {
+		for uid, count := range sub.uids {
 			//低16位表示总数量 高16位表示online的数量
-			c2 := count>>16&0xffff
+			c2 := count >> 16 & 0xffff
 			on := 0
 			if c2 > 0 {
 				on = 1
 			}
-			
-			id := &SubscribeMessage{appid: appid, uid: uid, online:int8(on)}
+
+			id := &SubscribeMessage{appid: appid, uid: uid, online: int8(on)}
 			msg := &Message{cmd: MSG_SUBSCRIBE, body: id}
-			
+
 			seq = seq + 1
 			msg.seq = seq
 			SendMessage(conn, msg)
@@ -277,7 +257,7 @@ func (channel *Channel) ReSubscribe(conn *net.TCPConn, seq int) int {
 
 func (channel *Channel) ReSubscribeRoom(conn *net.TCPConn, seq int) int {
 	subs := channel.GetAllRoomSubscriber()
-	for _, id := range(subs) {
+	for _, id := range subs {
 		msg := &Message{cmd: MSG_SUBSCRIBE_ROOM, body: id}
 		seq = seq + 1
 		msg.seq = seq

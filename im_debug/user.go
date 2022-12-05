@@ -1,22 +1,3 @@
-/**
- * Copyright (c) 2014-2015, GoBelieve     
- * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */
-
 package main
 
 import "fmt"
@@ -76,9 +57,8 @@ func SaveGroupSyncKey(appid int64, uid int64, group_id int64, sync_key int64) {
 	_, err := conn.Do("HSET", key, field, sync_key)
 	if err != nil {
 		log.Warning("hset error:", err)
-	}	
+	}
 }
-
 
 func GetUserForbidden(appid int64, uid int64) (int, error) {
 	conn := redis_pool.Get()
@@ -89,7 +69,7 @@ func GetUserForbidden(appid int64, uid int64) (int, error) {
 	forbidden, err := redis.Int(conn.Do("HGET", key, "forbidden"))
 	if err != nil {
 		log.Info("hget error:", err)
-		return 0,  err
+		return 0, err
 	}
 
 	return forbidden, nil
@@ -104,13 +84,13 @@ func LoadUserAccessToken(token string) (int64, int64, int, bool, error) {
 	var appid int64
 	var notification_on int8
 	var forbidden int
-	
+
 	exists, err := redis.Bool(conn.Do("EXISTS", key))
 	if err != nil {
 		return 0, 0, 0, false, err
 	}
 	if !exists {
-		return 0, 0, 0, false,  errors.New("token non exists")
+		return 0, 0, 0, false, errors.New("token non exists")
 	}
 
 	reply, err := redis.Values(conn.Do("HMGET", key, "user_id",
@@ -125,8 +105,8 @@ func LoadUserAccessToken(token string) (int64, int64, int, bool, error) {
 		log.Warning("scan error:", err)
 		return 0, 0, 0, false, err
 	}
-	
-	return appid, uid, forbidden, notification_on != 0, nil	
+
+	return appid, uid, forbidden, notification_on != 0, nil
 }
 
 func CountUser(appid int64, uid int64) {
@@ -143,7 +123,7 @@ func CountUser(appid int64, uid int64) {
 func CountDAU(appid int64, uid int64) {
 	conn := redis_pool.Get()
 	defer conn.Close()
-	
+
 	now := time.Now()
 	date := fmt.Sprintf("%d_%d_%d", now.Year(), int(now.Month()), now.Day())
 	key := fmt.Sprintf("statistics_dau_%s_%d", date, appid)

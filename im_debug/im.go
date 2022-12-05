@@ -1,23 +1,5 @@
-/**
- * Copyright (c) 2014-2015, GoBelieve     
- * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */
-
 package main
+
 import "net"
 import "fmt"
 import "flag"
@@ -35,11 +17,11 @@ import "github.com/importcjj/sensitive"
 import "github.com/bitly/go-simplejson"
 
 var (
-    VERSION    string
-    BUILD_TIME string
-    GO_VERSION string
+	VERSION       string
+	BUILD_TIME    string
+	GO_VERSION    string
 	GIT_COMMIT_ID string
-	GIT_BRANCH string
+	GIT_BRANCH    string
 )
 
 //storage server,  peer, group, customer message
@@ -87,7 +69,6 @@ func handle_ssl_client(conn net.Conn) {
 	client := NewClient(conn)
 	client.Run()
 }
-
 
 func Listen(f func(net.Conn), port int) {
 	listen_addr := fmt.Sprintf("0.0.0.0:%d", port)
@@ -139,14 +120,13 @@ func ListenSSL(port int, cert_file, key_file string) {
 	}
 }
 
-
 func NewRedisPool(server, password string, db int) *redis.Pool {
 	return &redis.Pool{
 		MaxIdle:     100,
 		MaxActive:   500,
 		IdleTimeout: 480 * time.Second,
 		Dial: func() (redis.Conn, error) {
-			timeout := time.Duration(2)*time.Second
+			timeout := time.Duration(2) * time.Second
 			c, err := redis.DialTimeout("tcp", server, timeout, 0, 0)
 			if err != nil {
 				return nil, err
@@ -173,7 +153,7 @@ func GetStorageRPCClient(uid int64) *gorpc.DispatcherClient {
 	if uid < 0 {
 		uid = -uid
 	}
-	index := uid%int64(len(rpc_clients))
+	index := uid % int64(len(rpc_clients))
 	return rpc_clients[index]
 }
 
@@ -182,23 +162,23 @@ func GetGroupStorageRPCClient(group_id int64) *gorpc.DispatcherClient {
 	if group_id < 0 {
 		group_id = -group_id
 	}
-	index := group_id%int64(len(group_rpc_clients))
+	index := group_id % int64(len(group_rpc_clients))
 	return group_rpc_clients[index]
 }
 
-func GetChannel(uid int64) *Channel{
+func GetChannel(uid int64) *Channel {
 	if uid < 0 {
 		uid = -uid
 	}
-	index := uid%int64(len(route_channels))
+	index := uid % int64(len(route_channels))
 	return route_channels[index]
 }
 
-func GetGroupChannel(group_id int64) *Channel{
+func GetGroupChannel(group_id int64) *Channel {
 	if group_id < 0 {
 		group_id = -group_id
 	}
-	index := group_id%int64(len(group_route_channels))
+	index := group_id % int64(len(group_route_channels))
 	return group_route_channels[index]
 }
 
@@ -206,7 +186,7 @@ func GetRoomChannel(room_id int64) *Channel {
 	if room_id < 0 {
 		room_id = -room_id
 	}
-	index := room_id%int64(len(route_channels))
+	index := room_id % int64(len(route_channels))
 	return route_channels[index]
 }
 
@@ -214,21 +194,21 @@ func GetGroupMessageDeliver(group_id int64) *GroupMessageDeliver {
 	if group_id < 0 {
 		group_id = -group_id
 	}
-	
+
 	deliver_index := atomic.AddUint64(&current_deliver_index, 1)
-	index := deliver_index%uint64(len(group_message_delivers))
+	index := deliver_index % uint64(len(group_message_delivers))
 	return group_message_delivers[index]
 }
 
 func SaveGroupMessage(appid int64, gid int64, device_id int64, msg *Message) (int64, error) {
 	dc := GetGroupStorageRPCClient(gid)
-	
+
 	gm := &GroupMessage{
-		AppID:appid,
-		GroupID:gid,
-		DeviceID:device_id,
-		Cmd:int32(msg.cmd),
-		Raw:msg.ToData(),
+		AppID:    appid,
+		GroupID:  gid,
+		DeviceID: device_id,
+		Cmd:      int32(msg.cmd),
+		Raw:      msg.ToData(),
 	}
 	resp, err := dc.Call("SaveGroupMessage", gm)
 	if err != nil {
@@ -242,13 +222,13 @@ func SaveGroupMessage(appid int64, gid int64, device_id int64, msg *Message) (in
 
 func SaveMessage(appid int64, uid int64, device_id int64, m *Message) (int64, error) {
 	dc := GetStorageRPCClient(uid)
-	
+
 	pm := &PeerMessage{
-		AppID:appid,
-		Uid:uid,
-		DeviceID:device_id,
-		Cmd:int32(m.cmd),
-		Raw:m.ToData(),
+		AppID:    appid,
+		Uid:      uid,
+		DeviceID: device_id,
+		Cmd:      int32(m.cmd),
+		Raw:      m.ToData(),
 	}
 
 	resp, err := dc.Call("SavePeerMessage", pm)
@@ -265,14 +245,14 @@ func SaveMessage(appid int64, uid int64, device_id int64, m *Message) (int64, er
 //超级群，离线消息推送
 func PushGroupMessage(appid int64, group_id int64, m *Message) {
 	now := time.Now().UnixNano()
-	amsg := &AppMessage{appid:appid, receiver:group_id, msgid:0, timestamp:now, msg:m}
+	amsg := &AppMessage{appid: appid, receiver: group_id, msgid: 0, timestamp: now, msg: m}
 
 	group := group_manager.FindGroup(amsg.receiver)
 	if group == nil {
 		log.Warningf("can't dispatch group message, appid:%d group id:%d", amsg.appid, amsg.receiver)
 		return
 	}
-	
+
 	channels := make(map[*Channel]struct{})
 	members := group.Members()
 	for member := range members {
@@ -294,21 +274,21 @@ func PushMessage(appid int64, uid int64, m *Message) {
 
 func PublishMessage(appid int64, uid int64, m *Message) {
 	now := time.Now().UnixNano()
-	amsg := &AppMessage{appid:appid, receiver:uid, msgid:0, timestamp:now, msg:m}
+	amsg := &AppMessage{appid: appid, receiver: uid, msgid: 0, timestamp: now, msg: m}
 	channel := GetChannel(uid)
 	channel.Publish(amsg)
 }
 
 func PublishGroupMessage(appid int64, group_id int64, msg *Message) {
 	now := time.Now().UnixNano()
-	amsg := &AppMessage{appid:appid, receiver:group_id, msgid:0, timestamp:now, msg:msg}
+	amsg := &AppMessage{appid: appid, receiver: group_id, msgid: 0, timestamp: now, msg: msg}
 	channel := GetGroupChannel(group_id)
 	channel.PublishGroup(amsg)
 }
 
 func SendAppGroupMessage(appid int64, group_id int64, msg *Message) {
 	now := time.Now().UnixNano()
-	amsg := &AppMessage{appid:appid, receiver:group_id, msgid:0, timestamp:now, msg:msg}
+	amsg := &AppMessage{appid: appid, receiver: group_id, msgid: 0, timestamp: now, msg: msg}
 	channel := GetGroupChannel(group_id)
 	channel.PublishGroup(amsg)
 	DispatchGroupMessage(amsg)
@@ -316,7 +296,7 @@ func SendAppGroupMessage(appid int64, group_id int64, msg *Message) {
 
 func SendAppMessage(appid int64, uid int64, msg *Message) {
 	now := time.Now().UnixNano()
-	amsg := &AppMessage{appid:appid, receiver:uid, msgid:0, timestamp:now, msg:msg}
+	amsg := &AppMessage{appid: appid, receiver: uid, msgid: 0, timestamp: now, msg: msg}
 	channel := GetChannel(uid)
 	channel.Publish(amsg)
 	DispatchAppMessage(amsg)
@@ -338,7 +318,7 @@ func FilterDirtyWord(msg *IMMessage) {
 		return
 	}
 
-	if exist,  _ := filter.FindIn(text); exist {
+	if exist, _ := filter.FindIn(text); exist {
 		t := filter.RemoveNoise(text)
 		replacedText := filter.Replace(t, '*')
 
@@ -370,7 +350,7 @@ func DispatchAppMessage(amsg *AppMessage) {
 		log.Infof("can't dispatch app message, appid:%d uid:%d cmd:%s", amsg.appid, amsg.receiver, Command(amsg.msg.cmd))
 		return
 	}
-	for c, _ := range(clients) {
+	for c, _ := range clients {
 		c.EnqueueNonBlockMessage(amsg.msg)
 	}
 }
@@ -385,9 +365,9 @@ func DispatchRoomMessage(amsg *AppMessage) {
 		log.Infof("can't dispatch room message, appid:%d room id:%d cmd:%s", amsg.appid, amsg.receiver, Command(amsg.msg.cmd))
 		return
 	}
-	for c, _ := range(clients) {
+	for c, _ := range clients {
 		c.EnqueueNonBlockMessage(amsg.msg)
-	}	
+	}
 }
 
 func DispatchGroupMessage(amsg *AppMessage) {
@@ -397,7 +377,7 @@ func DispatchGroupMessage(amsg *AppMessage) {
 	if d > int64(time.Second) {
 		log.Warning("dispatch group message slow...")
 	}
-	
+
 	group := group_manager.FindGroup(amsg.receiver)
 	if group == nil {
 		log.Warningf("can't dispatch group message, appid:%d group id:%d", amsg.appid, amsg.receiver)
@@ -412,18 +392,16 @@ func DispatchGroupMessage(amsg *AppMessage) {
 
 	members := group.Members()
 	for member := range members {
-	    clients := route.FindClientSet(member)
+		clients := route.FindClientSet(member)
 		if len(clients) == 0 {
 			continue
 		}
 
-		for c, _ := range(clients) {
+		for c, _ := range clients {
 			c.EnqueueNonBlockMessage(amsg.msg)
 		}
 	}
 }
-
-
 
 type loggingHandler struct {
 	handler http.Handler
@@ -454,7 +432,7 @@ func StartHttpServer(addr string) {
 	http.HandleFunc("/dequeue_message", DequeueMessage)
 
 	handler := loggingHandler{http.DefaultServeMux}
-	
+
 	err := http.ListenAndServe(addr, handler)
 	if err != nil {
 		log.Fatal("http server err:", err)
@@ -464,17 +442,17 @@ func StartHttpServer(addr string) {
 func SyncKeyService() {
 	for {
 		select {
-		case s := <- sync_c:
+		case s := <-sync_c:
 			origin := GetSyncKey(s.AppID, s.Uid)
 			if s.LastMsgID > origin {
 				log.Infof("save sync key:%d %d %d", s.AppID, s.Uid, s.LastMsgID)
 				SaveSyncKey(s.AppID, s.Uid, s.LastMsgID)
 			}
 			break
-		case s := <- group_sync_c:
+		case s := <-group_sync_c:
 			origin := GetGroupSyncKey(s.AppID, s.Uid, s.GroupID)
 			if s.LastMsgID > origin {
-				log.Infof("save group sync key:%d %d %d %d", 
+				log.Infof("save group sync key:%d %d %d %d",
 					s.AppID, s.Uid, s.GroupID, s.LastMsgID)
 				SaveGroupSyncKey(s.AppID, s.Uid, s.GroupID, s.LastMsgID)
 			}
@@ -492,32 +470,32 @@ func main() {
 		fmt.Println("usage: im config")
 		return
 	}
-	
+
 	config = read_cfg(flag.Args()[0])
 	log.Infof("port:%d\n", config.port)
 
-	log.Infof("redis address:%s password:%s db:%d\n", 
+	log.Infof("redis address:%s password:%s db:%d\n",
 		config.redis_address, config.redis_password, config.redis_db)
 
 	log.Info("storage addresses:", config.storage_rpc_addrs)
 	log.Info("route addressed:", config.route_addrs)
-	log.Info("group route addressed:", config.group_route_addrs)	
+	log.Info("group route addressed:", config.group_route_addrs)
 	log.Info("kefu appid:", config.kefu_appid)
 	log.Info("pending root:", config.pending_root)
-	
+
 	log.Infof("socket io address:%s tls_address:%s cert file:%s key file:%s",
 		config.socket_io_address, config.tls_address, config.cert_file, config.key_file)
 	log.Info("group deliver count:", config.group_deliver_count)
 	log.Info("sync self:", config.sync_self)
-	
-	redis_pool = NewRedisPool(config.redis_address, config.redis_password, 
+
+	redis_pool = NewRedisPool(config.redis_address, config.redis_password,
 		config.redis_db)
 
 	rpc_clients = make([]*gorpc.DispatcherClient, 0)
-	for _, addr := range(config.storage_rpc_addrs) {
+	for _, addr := range config.storage_rpc_addrs {
 		c := &gorpc.Client{
 			Conns: 4,
-			Addr: addr,
+			Addr:  addr,
 		}
 		c.Start()
 
@@ -535,10 +513,10 @@ func main() {
 
 	if len(config.group_storage_rpc_addrs) > 0 {
 		group_rpc_clients = make([]*gorpc.DispatcherClient, 0)
-		for _, addr := range(config.group_storage_rpc_addrs) {
+		for _, addr := range config.group_storage_rpc_addrs {
 			c := &gorpc.Client{
 				Conns: 4,
-				Addr: addr,
+				Addr:  addr,
 			}
 			c.Start()
 
@@ -557,7 +535,7 @@ func main() {
 	}
 
 	route_channels = make([]*Channel, 0)
-	for _, addr := range(config.route_addrs) {
+	for _, addr := range config.route_addrs {
 		channel := NewChannel(addr, DispatchAppMessage, DispatchGroupMessage, DispatchRoomMessage)
 		channel.Start()
 		route_channels = append(route_channels, channel)
@@ -565,7 +543,7 @@ func main() {
 
 	if len(config.group_route_addrs) > 0 {
 		group_route_channels = make([]*Channel, 0)
-		for _, addr := range(config.group_route_addrs) {
+		for _, addr := range config.group_route_addrs {
 			channel := NewChannel(addr, DispatchAppMessage, DispatchGroupMessage, DispatchRoomMessage)
 			channel.Start()
 			group_route_channels = append(group_route_channels, channel)
@@ -578,7 +556,7 @@ func main() {
 		filter = sensitive.New()
 		filter.LoadWordDict(config.word_file)
 	}
-	
+
 	group_manager = NewGroupManager()
 	group_manager.Start()
 
@@ -590,14 +568,14 @@ func main() {
 		deliver.Start()
 		group_message_delivers[i] = deliver
 	}
-	
+
 	go ListenRedis()
 	go SyncKeyService()
-	
+
 	go StartHttpServer(config.http_listen_address)
 	StartRPCServer(config.rpc_listen_address)
 
-	go StartSocketIO(config.socket_io_address, config.tls_address, 
+	go StartSocketIO(config.socket_io_address, config.tls_address,
 		config.cert_file, config.key_file)
 
 	if config.ssl_port > 0 && len(config.cert_file) > 0 && len(config.key_file) > 0 {

@@ -1,30 +1,11 @@
-/**
- * Copyright (c) 2014-2015, GoBelieve     
- * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */
-
 package main
 
 import (
+	"bytes"
 	log "github.com/golang/glog"
 	"github.com/googollee/go-engine.io"
 	"io/ioutil"
 	"net/http"
-	"bytes"
 )
 
 type SIOServer struct {
@@ -45,13 +26,13 @@ func (s *SIOServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	s.server.ServeHTTP(w, req)
 }
 
-func StartSocketIO(address string, tls_address string, 
+func StartSocketIO(address string, tls_address string,
 	cert_file string, key_file string) {
 	server, err := engineio.NewServer(nil)
 	if err != nil {
 		log.Fatal(err)
 	}
-	
+
 	go func() {
 		for {
 			conn, err := server.Accept()
@@ -122,4 +103,3 @@ func ReadBinaryMesage(b []byte) *Message {
 	reader := bytes.NewReader(b)
 	return ReceiveClientMessage(reader)
 }
-

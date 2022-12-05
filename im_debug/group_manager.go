@@ -1,22 +1,3 @@
-/**
- * Copyright (c) 2014-2015, GoBelieve     
- * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */
-
 package main
 
 import "sync"
@@ -32,13 +13,12 @@ import _ "github.com/go-sql-driver/mysql"
 import log "github.com/golang/glog"
 
 //同redis的长链接保持5minute的心跳
-const SUBSCRIBE_HEATBEAT = 5*60
-
+const SUBSCRIBE_HEATBEAT = 5 * 60
 
 type GroupManager struct {
-	mutex  sync.Mutex
-	groups map[int64]*Group
-	ping     string
+	mutex     sync.Mutex
+	groups    map[int64]*Group
+	ping      string
 	action_id int64
 	dirty     bool
 }
@@ -48,9 +28,9 @@ func NewGroupManager() *GroupManager {
 	r := fmt.Sprintf("ping_%d", now)
 	for i := 0; i < 4; i++ {
 		n := rand.Int31n(26)
-		r = r + string('a' + n)
+		r = r + string('a'+n)
 	}
-	
+
 	m := new(GroupManager)
 	m.groups = make(map[int64]*Group)
 	m.ping = r
@@ -59,12 +39,12 @@ func NewGroupManager() *GroupManager {
 	return m
 }
 
-func (group_manager *GroupManager) GetGroups() []*Group{
+func (group_manager *GroupManager) GetGroups() []*Group {
 	group_manager.mutex.Lock()
 	defer group_manager.mutex.Unlock()
 
 	groups := make([]*Group, 0, len(group_manager.groups))
-	for _, group := range(group_manager.groups) {
+	for _, group := range group_manager.groups {
 		groups = append(groups, group)
 	}
 	return groups
@@ -179,7 +159,6 @@ func (group_manager *GroupManager) HandleUpgrade(data string) {
 		log.Infof("can't find group:%d\n", gid)
 	}
 }
-
 
 func (group_manager *GroupManager) HandleMemberAdd(data string) {
 	arr := strings.Split(data, ",")
@@ -311,7 +290,7 @@ func (group_manager *GroupManager) handleAction(data string, channel string) {
 			group_manager.HandleMute(content)
 		}
 		group_manager.action_id = action_id
-	}	
+	}
 }
 
 func (group_manager *GroupManager) ReloadGroup() bool {
@@ -362,7 +341,7 @@ func (group_manager *GroupManager) getActionID() (int64, error) {
 		action_id, err := strconv.ParseInt(arr[1], 10, 64)
 		if err != nil {
 			log.Info("error:", err, actions)
-			return 0, err			
+			return 0, err
 		}
 		return action_id, nil
 	}
@@ -376,7 +355,7 @@ func (group_manager *GroupManager) load() {
 			time.Sleep(1 * time.Second)
 			continue
 		}
-		
+
 		r := group_manager.ReloadGroup()
 		if !r {
 			time.Sleep(1 * time.Second)
@@ -412,7 +391,7 @@ func (group_manager *GroupManager) checkActionID() {
 }
 
 func (group_manager *GroupManager) RunOnce() bool {
-	t := redis.DialReadTimeout(time.Second*SUBSCRIBE_HEATBEAT)
+	t := redis.DialReadTimeout(time.Second * SUBSCRIBE_HEATBEAT)
 	c, err := redis.Dial("tcp", config.redis_address, t)
 	if err != nil {
 		log.Info("dial redis error:", err)
@@ -430,14 +409,14 @@ func (group_manager *GroupManager) RunOnce() bool {
 	psc := redis.PubSubConn{c}
 	psc.Subscribe("group_create", "group_disband", "group_member_add",
 		"group_member_remove", "group_upgrade", "group_member_mute", group_manager.ping)
-	
+
 	group_manager.checkActionID()
 	for {
 		switch v := psc.Receive().(type) {
 		case redis.Message:
 			if v.Channel == "group_create" ||
 				v.Channel == "group_disband" ||
-				v.Channel == "group_member_add"	||
+				v.Channel == "group_member_add" ||
 				v.Channel == "group_member_remove" ||
 				v.Channel == "group_upgrade" ||
 				v.Channel == "group_member_mute" {
@@ -497,11 +476,10 @@ func (group_manager *GroupManager) Ping() {
 	}
 }
 
-
 func (group_manager *GroupManager) PingLoop() {
 	for {
 		group_manager.Ping()
-		time.Sleep(time.Second*(SUBSCRIBE_HEATBEAT-10))
+		time.Sleep(time.Second * (SUBSCRIBE_HEATBEAT - 10))
 	}
 }
 

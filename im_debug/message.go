@@ -1,22 +1,3 @@
-/**
- * Copyright (c) 2014-2015, GoBelieve     
- * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */
-
 package main
 
 import "bytes"
@@ -24,6 +5,7 @@ import "encoding/binary"
 import "fmt"
 
 const MSG_AUTH_STATUS = 3
+
 //persistent
 const MSG_IM = 4
 
@@ -44,6 +26,7 @@ const MSG_RT = 17
 const MSG_ENTER_ROOM = 18
 const MSG_LEAVE_ROOM = 19
 const MSG_ROOM_IM = 20
+
 //persistent
 const MSG_SYSTEM = 21
 
@@ -53,27 +36,26 @@ const MSG_UNREAD_COUNT = 22
 const MSG_CUSTOMER_SERVICE_ = 23
 
 //persistent
-const MSG_CUSTOMER = 24 //顾客->客服
+const MSG_CUSTOMER = 24         //顾客->客服
 const MSG_CUSTOMER_SUPPORT = 25 //客服->顾客
-
 
 //客户端->服务端
 const MSG_SYNC = 26 //同步消息
 //服务端->客服端
 const MSG_SYNC_BEGIN = 27
 const MSG_SYNC_END = 28
+
 //通知客户端有新消息
 const MSG_SYNC_NOTIFY = 29
 
-
 //客户端->服务端
-const MSG_SYNC_GROUP = 30//同步超级群消息
+const MSG_SYNC_GROUP = 30 //同步超级群消息
 //服务端->客服端
 const MSG_SYNC_GROUP_BEGIN = 31
 const MSG_SYNC_GROUP_END = 32
+
 //通知客户端有新消息
 const MSG_SYNC_GROUP_NOTIFY = 33
-
 
 //客服端->服务端,更新服务器的synckey
 const MSG_SYNC_KEY = 34
@@ -84,10 +66,10 @@ const MSG_NOTIFICATION = 36
 
 const MSG_VOIP_CONTROL = 64
 
-
 //消息标志
 //文本消息
 const MESSAGE_FLAG_TEXT = 0x01
+
 //消息不持久化
 const MESSAGE_FLAG_UNPERSISTENT = 0x02
 
@@ -98,43 +80,42 @@ const MESSAGE_FLAG_GROUP = 0x04
 const MESSAGE_FLAG_SELF = 0x08
 
 func init() {
-	message_creators[MSG_ACK] = func()IMessage{return new(MessageACK)}
-	message_creators[MSG_GROUP_NOTIFICATION] = func()IMessage{return new(GroupNotification)}
+	message_creators[MSG_ACK] = func() IMessage { return new(MessageACK) }
+	message_creators[MSG_GROUP_NOTIFICATION] = func() IMessage { return new(GroupNotification) }
 
-	message_creators[MSG_AUTH_TOKEN] = func()IMessage{return new(AuthenticationToken)}
+	message_creators[MSG_AUTH_TOKEN] = func() IMessage { return new(AuthenticationToken) }
 
-	message_creators[MSG_RT] = func()IMessage{return new(RTMessage)}
-	message_creators[MSG_ENTER_ROOM] = func()IMessage{return new(Room)}
-	message_creators[MSG_LEAVE_ROOM] = func()IMessage{return new(Room)}
-	message_creators[MSG_ROOM_IM] = func()IMessage{return &RoomMessage{new(RTMessage)}}
-	message_creators[MSG_SYSTEM] = func()IMessage{return new(SystemMessage)}
-	message_creators[MSG_UNREAD_COUNT] = func()IMessage{return new(MessageUnreadCount)}
-	message_creators[MSG_CUSTOMER_SERVICE_] = func()IMessage{return new(IgnoreMessage)}
+	message_creators[MSG_RT] = func() IMessage { return new(RTMessage) }
+	message_creators[MSG_ENTER_ROOM] = func() IMessage { return new(Room) }
+	message_creators[MSG_LEAVE_ROOM] = func() IMessage { return new(Room) }
+	message_creators[MSG_ROOM_IM] = func() IMessage { return &RoomMessage{new(RTMessage)} }
+	message_creators[MSG_SYSTEM] = func() IMessage { return new(SystemMessage) }
+	message_creators[MSG_UNREAD_COUNT] = func() IMessage { return new(MessageUnreadCount) }
+	message_creators[MSG_CUSTOMER_SERVICE_] = func() IMessage { return new(IgnoreMessage) }
 
-	message_creators[MSG_CUSTOMER] = func()IMessage{return new(CustomerMessage)}
-	message_creators[MSG_CUSTOMER_SUPPORT] = func()IMessage{return new(CustomerMessage)}
+	message_creators[MSG_CUSTOMER] = func() IMessage { return new(CustomerMessage) }
+	message_creators[MSG_CUSTOMER_SUPPORT] = func() IMessage { return new(CustomerMessage) }
 
+	message_creators[MSG_SYNC] = func() IMessage { return new(SyncKey) }
+	message_creators[MSG_SYNC_BEGIN] = func() IMessage { return new(SyncKey) }
+	message_creators[MSG_SYNC_END] = func() IMessage { return new(SyncKey) }
+	message_creators[MSG_SYNC_NOTIFY] = func() IMessage { return new(SyncKey) }
+	message_creators[MSG_SYNC_KEY] = func() IMessage { return new(SyncKey) }
 
-	message_creators[MSG_SYNC] = func()IMessage{return new(SyncKey)}
-	message_creators[MSG_SYNC_BEGIN] = func()IMessage{return new(SyncKey)}
-	message_creators[MSG_SYNC_END] = func()IMessage{return new(SyncKey)}
-	message_creators[MSG_SYNC_NOTIFY] = func()IMessage{return new(SyncKey)}
-	message_creators[MSG_SYNC_KEY] = func()IMessage{return new(SyncKey)}
+	message_creators[MSG_SYNC_GROUP] = func() IMessage { return new(GroupSyncKey) }
+	message_creators[MSG_SYNC_GROUP_BEGIN] = func() IMessage { return new(GroupSyncKey) }
+	message_creators[MSG_SYNC_GROUP_END] = func() IMessage { return new(GroupSyncKey) }
+	message_creators[MSG_SYNC_GROUP_NOTIFY] = func() IMessage { return new(GroupSyncKey) }
+	message_creators[MSG_GROUP_SYNC_KEY] = func() IMessage { return new(GroupSyncKey) }
 
-	message_creators[MSG_SYNC_GROUP] = func()IMessage{return new(GroupSyncKey)}
-	message_creators[MSG_SYNC_GROUP_BEGIN] = func()IMessage{return new(GroupSyncKey)}
-	message_creators[MSG_SYNC_GROUP_END] = func()IMessage{return new(GroupSyncKey)}
-	message_creators[MSG_SYNC_GROUP_NOTIFY] = func()IMessage{return new(GroupSyncKey)}
-	message_creators[MSG_GROUP_SYNC_KEY] = func()IMessage{return new(GroupSyncKey)}
+	message_creators[MSG_NOTIFICATION] = func() IMessage { return new(SystemMessage) }
 
-	message_creators[MSG_NOTIFICATION] = func()IMessage{return new(SystemMessage)}
-	
-	message_creators[MSG_VOIP_CONTROL] = func()IMessage{return new(VOIPControl)}
+	message_creators[MSG_VOIP_CONTROL] = func() IMessage { return new(VOIPControl) }
 
-	vmessage_creators[MSG_GROUP_IM] = func()IVersionMessage{return new(IMMessage)}
-	vmessage_creators[MSG_IM] = func()IVersionMessage{return new(IMMessage)}
+	vmessage_creators[MSG_GROUP_IM] = func() IVersionMessage { return new(IMMessage) }
+	vmessage_creators[MSG_IM] = func() IVersionMessage { return new(IMMessage) }
 
-	vmessage_creators[MSG_AUTH_STATUS] = func()IVersionMessage{return new(AuthenticationStatus)}
+	vmessage_creators[MSG_AUTH_STATUS] = func() IVersionMessage { return new(AuthenticationStatus) }
 
 	message_descriptions[MSG_AUTH_STATUS] = "MSG_AUTH_STATUS"
 	message_descriptions[MSG_IM] = "MSG_IM"
@@ -167,29 +148,27 @@ func init() {
 	message_descriptions[MSG_NOTIFICATION] = "MSG_NOTIFICATION"
 	message_descriptions[MSG_VOIP_CONTROL] = "MSG_VOIP_CONTROL"
 
-
-
-	external_messages[MSG_AUTH_TOKEN] = true;
-	external_messages[MSG_IM] = true;
-	external_messages[MSG_ACK] = true;
-	external_messages[MSG_GROUP_IM] = true;
-	external_messages[MSG_PING] = true;	
-	external_messages[MSG_PONG] = true;
-	external_messages[MSG_RT] = true;
-	external_messages[MSG_ENTER_ROOM] = true;
-	external_messages[MSG_LEAVE_ROOM] = true;
-	external_messages[MSG_ROOM_IM] = true;
-	external_messages[MSG_UNREAD_COUNT] = true;
-	external_messages[MSG_CUSTOMER] = true;
-	external_messages[MSG_CUSTOMER_SUPPORT] = true;
-	external_messages[MSG_SYNC] = true;
-	external_messages[MSG_SYNC_GROUP] = true;
-	external_messages[MSG_SYNC_KEY] = true;
-	external_messages[MSG_GROUP_SYNC_KEY] = true;
+	external_messages[MSG_AUTH_TOKEN] = true
+	external_messages[MSG_IM] = true
+	external_messages[MSG_ACK] = true
+	external_messages[MSG_GROUP_IM] = true
+	external_messages[MSG_PING] = true
+	external_messages[MSG_PONG] = true
+	external_messages[MSG_RT] = true
+	external_messages[MSG_ENTER_ROOM] = true
+	external_messages[MSG_LEAVE_ROOM] = true
+	external_messages[MSG_ROOM_IM] = true
+	external_messages[MSG_UNREAD_COUNT] = true
+	external_messages[MSG_CUSTOMER] = true
+	external_messages[MSG_CUSTOMER_SUPPORT] = true
+	external_messages[MSG_SYNC] = true
+	external_messages[MSG_SYNC_GROUP] = true
+	external_messages[MSG_SYNC_KEY] = true
+	external_messages[MSG_GROUP_SYNC_KEY] = true
 }
 
-
 type Command int
+
 func (cmd Command) String() string {
 	c := int(cmd)
 	if desc, ok := message_descriptions[c]; ok {
@@ -210,11 +189,11 @@ type IVersionMessage interface {
 }
 
 type Message struct {
-	cmd  int
-	seq  int
+	cmd     int
+	seq     int
 	version int
-	flag int
-	
+	flag    int
+
 	body interface{}
 }
 
@@ -252,7 +231,6 @@ func (message *Message) FromData(buff []byte) bool {
 
 //保存在磁盘中但不再需要处理的消息
 type IgnoreMessage struct {
-	
 }
 
 func (ignore *IgnoreMessage) ToData() []byte {
@@ -263,14 +241,11 @@ func (ignore *IgnoreMessage) FromData(buff []byte) bool {
 	return true
 }
 
-
-
 type AuthenticationToken struct {
 	token       string
 	platform_id int8
 	device_id   string
 }
-
 
 func (auth *AuthenticationToken) ToData() []byte {
 	var l int8
@@ -292,7 +267,7 @@ func (auth *AuthenticationToken) ToData() []byte {
 
 func (auth *AuthenticationToken) FromData(buff []byte) bool {
 	var l int8
-	if (len(buff) <= 3) {
+	if len(buff) <= 3 {
 		return false
 	}
 	auth.platform_id = int8(buff[0])
@@ -320,7 +295,7 @@ func (auth *AuthenticationToken) FromData(buff []byte) bool {
 
 type AuthenticationStatus struct {
 	status int32
-	ip int32 //兼容版本0
+	ip     int32 //兼容版本0
 }
 
 func (auth *AuthenticationStatus) ToData(version int) []byte {
@@ -348,13 +323,12 @@ func (auth *AuthenticationStatus) FromData(version int, buff []byte) bool {
 	return true
 }
 
-
-
 type RTMessage struct {
-	sender    int64
-	receiver  int64
-	content   string
+	sender   int64
+	receiver int64
+	content  string
 }
+
 func (message *RTMessage) ToData() []byte {
 	buffer := new(bytes.Buffer)
 	binary.Write(buffer, binary.BigEndian, message.sender)
@@ -375,7 +349,6 @@ func (rt *RTMessage) FromData(buff []byte) bool {
 	return true
 }
 
-
 type IMMessage struct {
 	sender    int64
 	receiver  int64
@@ -383,8 +356,6 @@ type IMMessage struct {
 	msgid     int32
 	content   string
 }
-
-
 
 func (message *IMMessage) ToDataV0() []byte {
 	buffer := new(bytes.Buffer)
@@ -407,7 +378,6 @@ func (im *IMMessage) FromDataV0(buff []byte) bool {
 	im.content = string(buff[20:])
 	return true
 }
-
 
 func (message *IMMessage) ToDataV1() []byte {
 	buffer := new(bytes.Buffer)
@@ -433,7 +403,6 @@ func (im *IMMessage) FromDataV1(buff []byte) bool {
 	return true
 }
 
-
 func (im *IMMessage) ToData(version int) []byte {
 	if version == 0 {
 		return im.ToDataV0()
@@ -449,7 +418,6 @@ func (im *IMMessage) FromData(version int, buff []byte) bool {
 		return im.FromDataV1(buff)
 	}
 }
-
 
 type MessageACK struct {
 	seq int32
@@ -501,14 +469,13 @@ func (sys *SystemMessage) FromData(buff []byte) bool {
 	return true
 }
 
-
 type CustomerMessage struct {
-	customer_appid int64//顾客id所在appid
-	customer_id    int64//顾客id
-	store_id	   int64
-	seller_id	   int64
-	timestamp	   int32
-	content		   string
+	customer_appid int64 //顾客id所在appid
+	customer_id    int64 //顾客id
+	store_id       int64
+	seller_id      int64
+	timestamp      int32
+	content        string
 }
 
 func (cs *CustomerMessage) ToData() []byte {
@@ -539,7 +506,6 @@ func (cs *CustomerMessage) FromData(buff []byte) bool {
 	return true
 }
 
-
 type GroupNotification struct {
 	notification string
 }
@@ -547,18 +513,19 @@ type GroupNotification struct {
 func (notification *GroupNotification) ToData() []byte {
 	return []byte(notification.notification)
 }
- 
+
 func (notification *GroupNotification) FromData(buff []byte) bool {
 	notification.notification = string(buff)
 	return true
 }
 
 type Room int64
+
 func (room *Room) ToData() []byte {
 	buffer := new(bytes.Buffer)
 	binary.Write(buffer, binary.BigEndian, int64(*room))
 	buf := buffer.Bytes()
-	return buf	
+	return buf
 }
 
 func (room *Room) FromData(buff []byte) bool {
@@ -577,8 +544,6 @@ func (room *Room) RoomID() int64 {
 type RoomMessage struct {
 	*RTMessage
 }
-
-
 
 type VOIPControl struct {
 	sender   int64
@@ -607,10 +572,9 @@ func (ctl *VOIPControl) FromData(buff []byte) bool {
 	return true
 }
 
-
 type AppUserID struct {
-	appid    int64
-	uid      int64
+	appid int64
+	uid   int64
 }
 
 func (id *AppUserID) ToData() []byte {
@@ -626,7 +590,7 @@ func (id *AppUserID) FromData(buff []byte) bool {
 		return false
 	}
 
-	buffer := bytes.NewBuffer(buff)	
+	buffer := bytes.NewBuffer(buff)
 	binary.Read(buffer, binary.BigEndian, &id.appid)
 	binary.Read(buffer, binary.BigEndian, &id.uid)
 
@@ -634,8 +598,8 @@ func (id *AppUserID) FromData(buff []byte) bool {
 }
 
 type AppRoomID struct {
-	appid    int64
-	room_id      int64
+	appid   int64
+	room_id int64
 }
 
 func (id *AppRoomID) ToData() []byte {
@@ -651,7 +615,7 @@ func (id *AppRoomID) FromData(buff []byte) bool {
 		return false
 	}
 
-	buffer := bytes.NewBuffer(buff)	
+	buffer := bytes.NewBuffer(buff)
 	binary.Read(buffer, binary.BigEndian, &id.appid)
 	binary.Read(buffer, binary.BigEndian, &id.room_id)
 
@@ -659,9 +623,9 @@ func (id *AppRoomID) FromData(buff []byte) bool {
 }
 
 type AppGroupMemberID struct {
-	appid  int64
-	gid    int64
-	uid    int64
+	appid int64
+	gid   int64
+	uid   int64
 }
 
 func (id *AppGroupMemberID) ToData() []byte {
@@ -678,7 +642,7 @@ func (id *AppGroupMemberID) FromData(buff []byte) bool {
 		return false
 	}
 
-	buffer := bytes.NewBuffer(buff)	
+	buffer := bytes.NewBuffer(buff)
 	binary.Read(buffer, binary.BigEndian, &id.appid)
 	binary.Read(buffer, binary.BigEndian, &id.gid)
 	binary.Read(buffer, binary.BigEndian, &id.uid)
@@ -686,11 +650,9 @@ func (id *AppGroupMemberID) FromData(buff []byte) bool {
 	return true
 }
 
-
 type SyncKey struct {
 	sync_key int64
 }
-
 
 func (id *SyncKey) ToData() []byte {
 	buffer := new(bytes.Buffer)
@@ -704,18 +666,15 @@ func (id *SyncKey) FromData(buff []byte) bool {
 		return false
 	}
 
-	buffer := bytes.NewBuffer(buff)	
+	buffer := bytes.NewBuffer(buff)
 	binary.Read(buffer, binary.BigEndian, &id.sync_key)
 	return true
 }
-
-
 
 type GroupSyncKey struct {
 	group_id int64
 	sync_key int64
 }
-
 
 func (id *GroupSyncKey) ToData() []byte {
 	buffer := new(bytes.Buffer)
@@ -735,5 +694,3 @@ func (id *GroupSyncKey) FromData(buff []byte) bool {
 	binary.Read(buffer, binary.BigEndian, &id.sync_key)
 	return true
 }
-
-
