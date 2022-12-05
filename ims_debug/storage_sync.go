@@ -182,7 +182,11 @@ func (slaver *Slaver) RunOnce(conn *net.TCPConn) {
 	msg := &Message{cmd: MSG_STORAGE_SYNC_BEGIN, body: cursor}
 	seq += 1
 	msg.seq = seq
-	SendMessage(conn, msg)
+	err := SendMessage(conn, msg)
+	if err != nil {
+		log.Error("Error when sending SyncBeginMessage")
+		return
+	}
 
 	for {
 		msg := ReceiveStorageSyncMessage(conn)
@@ -218,7 +222,7 @@ func (slaver *Slaver) Run() {
 		}
 		tconn := conn.(*net.TCPConn)
 		tconn.SetKeepAlive(true)
-		tconn.SetKeepAlivePeriod(time.Duration(10 * 60 * time.Second))
+		tconn.SetKeepAlivePeriod(10 * 60 * time.Second)
 		log.Info("slaver connected with master")
 		nsleep = 100
 		slaver.RunOnce(tconn)
