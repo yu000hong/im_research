@@ -16,24 +16,21 @@ const DEFAULT_VERSION = 1
 
 const MSG_HEADER_SIZE = 12
 
-var messageDescriptions map[int]string = make(map[int]string)
-
 type MessageCreator func() IMessage
-
-var messageCreators map[int]MessageCreator = make(map[int]MessageCreator)
-
 type VersionMessageCreator func() IVersionMessage
 
-var vmessageCreators map[int]VersionMessageCreator = make(map[int]VersionMessageCreator)
+var messageDescriptions = make(map[int]string)
+var messageCreators = make(map[int]MessageCreator)
+var vmessageCreators = make(map[int]VersionMessageCreator)
 
 //true client->server
 var externalMessages [256]bool
 
 func WriteHeader(len int32, seq int32, cmd byte, version byte, flag byte, buffer io.Writer) {
-	binary.Write(buffer, binary.BigEndian, len)
-	binary.Write(buffer, binary.BigEndian, seq)
-	t := []byte{cmd, byte(version), flag, 0}
-	buffer.Write(t)
+	_ = binary.Write(buffer, binary.BigEndian, len)
+	_ = binary.Write(buffer, binary.BigEndian, seq)
+	t := []byte{cmd, version, flag, 0}
+	_, _ = buffer.Write(t)
 }
 
 func ReadHeader(buff []byte) (int, int, int, int, int) {
@@ -115,12 +112,12 @@ func ReceiveMessage(conn io.Reader) *Message {
 	return ReceiveLimitMessage(conn, 32*1024, false)
 }
 
-//接受客户端消息(external messages)
+// ReceiveClientMessage 接受客户端消息(external messages)
 func ReceiveClientMessage(conn io.Reader) *Message {
 	return ReceiveLimitMessage(conn, 32*1024, true)
 }
 
-//消息大小限制在1M
+// ReceiveStorageSyncMessage 消息大小限制在1M
 func ReceiveStorageSyncMessage(conn io.Reader) *Message {
 	return ReceiveLimitMessage(conn, 32*1024*1024, false)
 }

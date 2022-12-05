@@ -8,59 +8,58 @@ import "runtime/pprof"
 import log "github.com/golang/glog"
 
 type ServerSummary struct {
-	nrequests         int64
-	peer_message_count int64
-	group_message_count  int64
+	requestCount      int64
+	peerMessageCount  int64
+	groupMessageCount int64
 }
 
 func NewServerSummary() *ServerSummary {
-	s := new(ServerSummary)
-	return s
+	return new(ServerSummary)
 }
 
+func Summary(res http.ResponseWriter, req *http.Request) {
+	data := make(map[string]interface{})
+	data["goroutine_count"] = runtime.NumGoroutine()
+	data["request_count"] = serverSummary.requestCount
+	data["peer_message_count"] = serverSummary.peerMessageCount
+	data["group_message_count"] = serverSummary.groupMessageCount
 
-func Summary(rw http.ResponseWriter, req *http.Request) {
-	obj := make(map[string]interface{})
-	obj["goroutine_count"] = runtime.NumGoroutine()
-	obj["request_count"] = server_summary.nrequests
-	obj["peer_message_count"] = server_summary.peer_message_count
-	obj["group_message_count"] = server_summary.group_message_count	
-
-	res, err := json.Marshal(obj)
+	body, err := json.Marshal(data)
 	if err != nil {
 		log.Info("json marshal:", err)
 		return
 	}
 
-	rw.Header().Add("Content-Type", "application/json")
-	_, err = rw.Write(res)
+	res.Header().Add("Content-Type", "application/json")
+	_, err = res.Write(body)
 	if err != nil {
 		log.Info("write err:", err)
 	}
 	return
 }
 
-func Stack(rw http.ResponseWriter, req *http.Request) {
+func Stack(res http.ResponseWriter, req *http.Request) {
 	pprof.Lookup("goroutine").WriteTo(os.Stderr, 1)
-	rw.WriteHeader(200)
+	res.WriteHeader(200)
 }
 
-func WriteHttpError(status int, err string, w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/json")
-	obj := make(map[string]interface{})
+func WriteHttpError(status int, err string, res http.ResponseWriter) {
+	res.Header().Set("Content-Type", "application/json")
 	meta := make(map[string]interface{})
 	meta["code"] = status
 	meta["message"] = err
-	obj["meta"] = meta
-	b, _ := json.Marshal(obj)
-	w.WriteHeader(status)
-	w.Write(b)
+
+	data := make(map[string]interface{})
+	data["meta"] = meta
+	body, _ := json.Marshal(data)
+	res.WriteHeader(status)
+	res.Write(body)
 }
 
-func WriteHttpObj(data map[string]interface{}, w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/json")
-	obj := make(map[string]interface{})
-	obj["data"] = data
-	b, _ := json.Marshal(obj)
-	w.Write(b)
+func WriteHttpObj(obj map[string]interface{}, res http.ResponseWriter) {
+	res.Header().Set("Content-Type", "application/json")
+	data := make(map[string]interface{})
+	data["data"] = obj
+	body, _ := json.Marshal(data)
+	res.Write(body)
 }

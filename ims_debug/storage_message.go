@@ -86,6 +86,8 @@ func init() {
 
 }
 
+//region SyncCursor
+
 type SyncCursor struct {
 	msgid int64
 }
@@ -105,10 +107,14 @@ func (cursor *SyncCursor) FromData(buff []byte) bool {
 	return true
 }
 
+//endregion
+
+//region EMessage
+
 type EMessage struct {
-	msgid     int64
-	device_id int64
-	msg       *Message
+	msgid    int64
+	deviceId int64
+	msg      *Message
 }
 
 func (emsg *EMessage) ToData() []byte {
@@ -118,13 +124,13 @@ func (emsg *EMessage) ToData() []byte {
 
 	buffer := new(bytes.Buffer)
 	binary.Write(buffer, binary.BigEndian, emsg.msgid)
-	binary.Write(buffer, binary.BigEndian, emsg.device_id)
+	binary.Write(buffer, binary.BigEndian, emsg.deviceId)
 	mbuffer := new(bytes.Buffer)
 	WriteMessage(mbuffer, emsg.msg)
-	msg_buf := mbuffer.Bytes()
-	var l int16 = int16(len(msg_buf))
+	msgBuf := mbuffer.Bytes()
+	var l = int16(len(msgBuf))
 	binary.Write(buffer, binary.BigEndian, l)
-	buffer.Write(msg_buf)
+	buffer.Write(msgBuf)
 	buf := buffer.Bytes()
 	return buf
 
@@ -137,17 +143,17 @@ func (emsg *EMessage) FromData(buff []byte) bool {
 
 	buffer := bytes.NewBuffer(buff)
 	binary.Read(buffer, binary.BigEndian, &emsg.msgid)
-	binary.Read(buffer, binary.BigEndian, &emsg.device_id)
+	binary.Read(buffer, binary.BigEndian, &emsg.deviceId)
 	var l int16
 	binary.Read(buffer, binary.BigEndian, &l)
 	if int(l) > buffer.Len() {
 		return false
 	}
 
-	msg_buf := make([]byte, l)
-	buffer.Read(msg_buf)
-	mbuffer := bytes.NewBuffer(msg_buf)
-	//recusive
+	msgBuf := make([]byte, l)
+	buffer.Read(msgBuf)
+	mbuffer := bytes.NewBuffer(msgBuf)
+	//recursive
 	msg := ReceiveMessage(mbuffer)
 	if msg == nil {
 		return false
@@ -157,20 +163,24 @@ func (emsg *EMessage) FromData(buff []byte) bool {
 	return true
 }
 
+//endregion
+
+//region MessageBatch
+
 type MessageBatch struct {
-	first_id int64
-	last_id  int64
-	msgs     []*Message
+	firstId  int64
+	lastId   int64
+	messages []*Message
 }
 
 func (batch *MessageBatch) ToData() []byte {
 	buffer := new(bytes.Buffer)
-	binary.Write(buffer, binary.BigEndian, batch.first_id)
-	binary.Write(buffer, binary.BigEndian, batch.last_id)
-	count := int32(len(batch.msgs))
+	binary.Write(buffer, binary.BigEndian, batch.firstId)
+	binary.Write(buffer, binary.BigEndian, batch.lastId)
+	count := int32(len(batch.messages))
 	binary.Write(buffer, binary.BigEndian, count)
 
-	for _, m := range batch.msgs {
+	for _, m := range batch.messages {
 		SendMessage(buffer, m)
 	}
 
@@ -184,31 +194,34 @@ func (batch *MessageBatch) FromData(buff []byte) bool {
 	}
 
 	buffer := bytes.NewBuffer(buff)
-	binary.Read(buffer, binary.BigEndian, &batch.first_id)
-	binary.Read(buffer, binary.BigEndian, &batch.last_id)
+	binary.Read(buffer, binary.BigEndian, &batch.firstId)
+	binary.Read(buffer, binary.BigEndian, &batch.lastId)
 
 	var count int32
 	binary.Read(buffer, binary.BigEndian, &count)
 
-	batch.msgs = make([]*Message, 0, count)
+	batch.messages = make([]*Message, 0, count)
 	for i := 0; i < int(count); i++ {
 		msg := ReceiveMessage(buffer)
 		if msg == nil {
 			return false
 		}
-		batch.msgs = append(batch.msgs, msg)
+		batch.messages = append(batch.messages, msg)
 	}
 
 	return true
 }
 
-//兼容性
+//endregion
+
+//region OfflineMessage
+
 type OfflineMessage struct {
-	appid      int64
-	receiver   int64
-	msgid      int64
-	device_id  int64
-	prev_msgid int64
+	appid     int64
+	receiver  int64
+	msgid     int64
+	deviceId  int64
+	prevMsgid int64
 }
 
 func (off *OfflineMessage) ToData() []byte {
@@ -216,8 +229,8 @@ func (off *OfflineMessage) ToData() []byte {
 	binary.Write(buffer, binary.BigEndian, off.appid)
 	binary.Write(buffer, binary.BigEndian, off.receiver)
 	binary.Write(buffer, binary.BigEndian, off.msgid)
-	binary.Write(buffer, binary.BigEndian, off.device_id)
-	binary.Write(buffer, binary.BigEndian, off.prev_msgid)
+	binary.Write(buffer, binary.BigEndian, off.deviceId)
+	binary.Write(buffer, binary.BigEndian, off.prevMsgid)
 	buf := buffer.Bytes()
 	return buf
 }
@@ -231,19 +244,23 @@ func (off *OfflineMessage) FromData(buff []byte) bool {
 	binary.Read(buffer, binary.BigEndian, &off.receiver)
 	binary.Read(buffer, binary.BigEndian, &off.msgid)
 	if len(buff) == 40 {
-		binary.Read(buffer, binary.BigEndian, &off.device_id)
+		binary.Read(buffer, binary.BigEndian, &off.deviceId)
 	}
-	binary.Read(buffer, binary.BigEndian, &off.prev_msgid)
+	binary.Read(buffer, binary.BigEndian, &off.prevMsgid)
 	return true
 }
 
+//endregion
+
+//region OfflineMessage2
+
 type OfflineMessage2 struct {
-	appid           int64
-	receiver        int64
-	msgid           int64
-	device_id       int64
-	prev_msgid      int64 //个人消息队列(点对点消息，群组消息)
-	prev_peer_msgid int64 //点对点消息队列
+	appid         int64
+	receiver      int64
+	msgid         int64
+	deviceId      int64
+	prevMsgid     int64 //个人消息队列(点对点消息，群组消息)
+	prevPeerMsgid int64 //点对点消息队列
 }
 
 func (off *OfflineMessage2) ToData() []byte {
@@ -251,9 +268,9 @@ func (off *OfflineMessage2) ToData() []byte {
 	binary.Write(buffer, binary.BigEndian, off.appid)
 	binary.Write(buffer, binary.BigEndian, off.receiver)
 	binary.Write(buffer, binary.BigEndian, off.msgid)
-	binary.Write(buffer, binary.BigEndian, off.device_id)
-	binary.Write(buffer, binary.BigEndian, off.prev_msgid)
-	binary.Write(buffer, binary.BigEndian, off.prev_peer_msgid)
+	binary.Write(buffer, binary.BigEndian, off.deviceId)
+	binary.Write(buffer, binary.BigEndian, off.prevMsgid)
+	binary.Write(buffer, binary.BigEndian, off.prevPeerMsgid)
 	buf := buffer.Bytes()
 	return buf
 }
@@ -266,17 +283,21 @@ func (off *OfflineMessage2) FromData(buff []byte) bool {
 	binary.Read(buffer, binary.BigEndian, &off.appid)
 	binary.Read(buffer, binary.BigEndian, &off.receiver)
 	binary.Read(buffer, binary.BigEndian, &off.msgid)
-	binary.Read(buffer, binary.BigEndian, &off.device_id)
-	binary.Read(buffer, binary.BigEndian, &off.prev_msgid)
-	binary.Read(buffer, binary.BigEndian, &off.prev_peer_msgid)
+	binary.Read(buffer, binary.BigEndian, &off.deviceId)
+	binary.Read(buffer, binary.BigEndian, &off.prevMsgid)
+	binary.Read(buffer, binary.BigEndian, &off.prevPeerMsgid)
 	return true
 }
 
+//endregion
+
+//region MessageACKIn
+
 type MessageACKIn struct {
-	appid     int64
-	receiver  int64
-	msgid     int64
-	device_id int64
+	appid    int64
+	receiver int64
+	msgid    int64
+	deviceId int64
 }
 
 func (off *MessageACKIn) ToData() []byte {
@@ -284,7 +305,7 @@ func (off *MessageACKIn) ToData() []byte {
 	binary.Write(buffer, binary.BigEndian, off.appid)
 	binary.Write(buffer, binary.BigEndian, off.receiver)
 	binary.Write(buffer, binary.BigEndian, off.msgid)
-	binary.Write(buffer, binary.BigEndian, off.device_id)
+	binary.Write(buffer, binary.BigEndian, off.deviceId)
 	buf := buffer.Bytes()
 	return buf
 }
@@ -297,15 +318,19 @@ func (off *MessageACKIn) FromData(buff []byte) bool {
 	binary.Read(buffer, binary.BigEndian, &off.appid)
 	binary.Read(buffer, binary.BigEndian, &off.receiver)
 	binary.Read(buffer, binary.BigEndian, &off.msgid)
-	binary.Read(buffer, binary.BigEndian, &off.device_id)
+	binary.Read(buffer, binary.BigEndian, &off.deviceId)
 	return true
 }
 
+//endregion
+
+//region DQMessage
+
 type DQMessage struct {
-	appid     int64
-	receiver  int64
-	msgid     int64
-	device_id int64
+	appid    int64
+	receiver int64
+	msgid    int64
+	deviceId int64
 }
 
 func (dq *DQMessage) ToData() []byte {
@@ -313,7 +338,7 @@ func (dq *DQMessage) ToData() []byte {
 	binary.Write(buffer, binary.BigEndian, dq.appid)
 	binary.Write(buffer, binary.BigEndian, dq.receiver)
 	binary.Write(buffer, binary.BigEndian, dq.msgid)
-	binary.Write(buffer, binary.BigEndian, dq.device_id)
+	binary.Write(buffer, binary.BigEndian, dq.deviceId)
 	buf := buffer.Bytes()
 	return buf
 }
@@ -326,16 +351,20 @@ func (dq *DQMessage) FromData(buff []byte) bool {
 	binary.Read(buffer, binary.BigEndian, &dq.appid)
 	binary.Read(buffer, binary.BigEndian, &dq.receiver)
 	binary.Read(buffer, binary.BigEndian, &dq.msgid)
-	binary.Read(buffer, binary.BigEndian, &dq.device_id)
+	binary.Read(buffer, binary.BigEndian, &dq.deviceId)
 	return true
 }
 
+//endregion
+
+//region DQGroupMessage
+
 type DQGroupMessage struct {
-	appid     int64
-	receiver  int64
-	msgid     int64
-	gid       int64
-	device_id int64
+	appid    int64
+	receiver int64
+	msgid    int64
+	gid      int64
+	deviceId int64
 }
 
 func (dq *DQGroupMessage) ToData() []byte {
@@ -344,7 +373,7 @@ func (dq *DQGroupMessage) ToData() []byte {
 	binary.Write(buffer, binary.BigEndian, dq.receiver)
 	binary.Write(buffer, binary.BigEndian, dq.msgid)
 	binary.Write(buffer, binary.BigEndian, dq.gid)
-	binary.Write(buffer, binary.BigEndian, dq.device_id)
+	binary.Write(buffer, binary.BigEndian, dq.deviceId)
 	buf := buffer.Bytes()
 	return buf
 }
@@ -358,17 +387,21 @@ func (dq *DQGroupMessage) FromData(buff []byte) bool {
 	binary.Read(buffer, binary.BigEndian, &dq.receiver)
 	binary.Read(buffer, binary.BigEndian, &dq.msgid)
 	binary.Read(buffer, binary.BigEndian, &dq.gid)
-	binary.Read(buffer, binary.BigEndian, &dq.device_id)
+	binary.Read(buffer, binary.BigEndian, &dq.deviceId)
 	return true
 }
 
+//endregion
+
+//region GroupOfflineMessage
+
 type GroupOfflineMessage struct {
-	appid      int64
-	receiver   int64
-	msgid      int64
-	gid        int64
-	device_id  int64
-	prev_msgid int64
+	appid     int64
+	receiver  int64
+	msgid     int64
+	gid       int64
+	deviceId  int64
+	prevMsgid int64
 }
 
 func (off *GroupOfflineMessage) ToData() []byte {
@@ -377,8 +410,8 @@ func (off *GroupOfflineMessage) ToData() []byte {
 	binary.Write(buffer, binary.BigEndian, off.receiver)
 	binary.Write(buffer, binary.BigEndian, off.msgid)
 	binary.Write(buffer, binary.BigEndian, off.gid)
-	binary.Write(buffer, binary.BigEndian, off.device_id)
-	binary.Write(buffer, binary.BigEndian, off.prev_msgid)
+	binary.Write(buffer, binary.BigEndian, off.deviceId)
+	binary.Write(buffer, binary.BigEndian, off.prevMsgid)
 	buf := buffer.Bytes()
 	return buf
 }
@@ -393,17 +426,21 @@ func (off *GroupOfflineMessage) FromData(buff []byte) bool {
 	binary.Read(buffer, binary.BigEndian, &off.msgid)
 	binary.Read(buffer, binary.BigEndian, &off.gid)
 	if len(buff) == 48 {
-		binary.Read(buffer, binary.BigEndian, &off.device_id)
+		binary.Read(buffer, binary.BigEndian, &off.deviceId)
 	}
-	binary.Read(buffer, binary.BigEndian, &off.prev_msgid)
+	binary.Read(buffer, binary.BigEndian, &off.prevMsgid)
 	return true
 }
 
+//endregion
+
+//region SAEMessage
+
 type SAEMessage struct {
-	msg       *Message
-	appid     int64
-	receiver  int64
-	device_id int64
+	msg      *Message
+	appid    int64
+	receiver int64
+	deviceId int64
 }
 
 func (sae *SAEMessage) ToData() []byte {
@@ -419,14 +456,14 @@ func (sae *SAEMessage) ToData() []byte {
 	buffer := new(bytes.Buffer)
 	mbuffer := new(bytes.Buffer)
 	WriteMessage(mbuffer, sae.msg)
-	msg_buf := mbuffer.Bytes()
-	var l int16 = int16(len(msg_buf))
+	msgBuf := mbuffer.Bytes()
+	var l int16 = int16(len(msgBuf))
 	binary.Write(buffer, binary.BigEndian, l)
-	buffer.Write(msg_buf)
+	buffer.Write(msgBuf)
 
 	binary.Write(buffer, binary.BigEndian, sae.appid)
 	binary.Write(buffer, binary.BigEndian, sae.receiver)
-	binary.Write(buffer, binary.BigEndian, sae.device_id)
+	binary.Write(buffer, binary.BigEndian, sae.deviceId)
 	buf := buffer.Bytes()
 	return buf
 }
@@ -443,9 +480,9 @@ func (sae *SAEMessage) FromData(buff []byte) bool {
 		return false
 	}
 
-	msg_buf := make([]byte, l)
-	buffer.Read(msg_buf)
-	mbuffer := bytes.NewBuffer(msg_buf)
+	msgBuf := make([]byte, l)
+	buffer.Read(msgBuf)
+	mbuffer := bytes.NewBuffer(msgBuf)
 	//recusive
 	msg := ReceiveMessage(mbuffer)
 	if msg == nil {
@@ -458,9 +495,13 @@ func (sae *SAEMessage) FromData(buff []byte) bool {
 	}
 	binary.Read(buffer, binary.BigEndian, &sae.appid)
 	binary.Read(buffer, binary.BigEndian, &sae.receiver)
-	binary.Read(buffer, binary.BigEndian, &sae.device_id)
+	binary.Read(buffer, binary.BigEndian, &sae.deviceId)
 	return true
 }
+
+//endregion
+
+//region MessageResult
 
 type MessageResult struct {
 	status  int32
@@ -486,31 +527,39 @@ func (result *MessageResult) FromData(buff []byte) bool {
 	return true
 }
 
+//endregion
+
+//region LoadLatest
+
 type LoadLatest struct {
 	appid int64
 	uid   int64
 	limit int32
 }
 
-func (lh *LoadLatest) ToData() []byte {
+func (ll *LoadLatest) ToData() []byte {
 	buffer := new(bytes.Buffer)
-	binary.Write(buffer, binary.BigEndian, lh.appid)
-	binary.Write(buffer, binary.BigEndian, lh.uid)
-	binary.Write(buffer, binary.BigEndian, lh.limit)
+	binary.Write(buffer, binary.BigEndian, ll.appid)
+	binary.Write(buffer, binary.BigEndian, ll.uid)
+	binary.Write(buffer, binary.BigEndian, ll.limit)
 	buf := buffer.Bytes()
 	return buf
 }
 
-func (lh *LoadLatest) FromData(buff []byte) bool {
+func (ll *LoadLatest) FromData(buff []byte) bool {
 	if len(buff) < 20 {
 		return false
 	}
 	buffer := bytes.NewBuffer(buff)
-	binary.Read(buffer, binary.BigEndian, &lh.appid)
-	binary.Read(buffer, binary.BigEndian, &lh.uid)
-	binary.Read(buffer, binary.BigEndian, &lh.limit)
+	binary.Read(buffer, binary.BigEndian, &ll.appid)
+	binary.Read(buffer, binary.BigEndian, &ll.uid)
+	binary.Read(buffer, binary.BigEndian, &ll.limit)
 	return true
 }
+
+//endregion
+
+//region LoadHistory
 
 type LoadHistory struct {
 	appid int64
@@ -538,17 +587,21 @@ func (lh *LoadHistory) FromData(buff []byte) bool {
 	return true
 }
 
+//endregion
+
+//region LoadOffline
+
 type LoadOffline struct {
-	appid     int64
-	uid       int64
-	device_id int64
+	appid    int64
+	uid      int64
+	deviceId int64
 }
 
 func (lo *LoadOffline) ToData() []byte {
 	buffer := new(bytes.Buffer)
 	binary.Write(buffer, binary.BigEndian, lo.appid)
 	binary.Write(buffer, binary.BigEndian, lo.uid)
-	binary.Write(buffer, binary.BigEndian, lo.device_id)
+	binary.Write(buffer, binary.BigEndian, lo.deviceId)
 	buf := buffer.Bytes()
 	return buf
 }
@@ -560,15 +613,19 @@ func (lo *LoadOffline) FromData(buff []byte) bool {
 	buffer := bytes.NewBuffer(buff)
 	binary.Read(buffer, binary.BigEndian, &lo.appid)
 	binary.Read(buffer, binary.BigEndian, &lo.uid)
-	binary.Read(buffer, binary.BigEndian, &lo.device_id)
+	binary.Read(buffer, binary.BigEndian, &lo.deviceId)
 	return true
 }
 
+//endregion
+
+//region LoadGroupOffline
+
 type LoadGroupOffline struct {
-	appid     int64
-	gid       int64
-	uid       int64
-	device_id int64
+	appid    int64
+	gid      int64
+	uid      int64
+	deviceId int64
 }
 
 func (lo *LoadGroupOffline) ToData() []byte {
@@ -576,7 +633,7 @@ func (lo *LoadGroupOffline) ToData() []byte {
 	binary.Write(buffer, binary.BigEndian, lo.appid)
 	binary.Write(buffer, binary.BigEndian, lo.gid)
 	binary.Write(buffer, binary.BigEndian, lo.uid)
-	binary.Write(buffer, binary.BigEndian, lo.device_id)
+	binary.Write(buffer, binary.BigEndian, lo.deviceId)
 	buf := buffer.Bytes()
 	return buf
 }
@@ -589,15 +646,20 @@ func (lo *LoadGroupOffline) FromData(buff []byte) bool {
 	binary.Read(buffer, binary.BigEndian, &lo.appid)
 	binary.Read(buffer, binary.BigEndian, &lo.gid)
 	binary.Read(buffer, binary.BigEndian, &lo.uid)
-	binary.Read(buffer, binary.BigEndian, &lo.device_id)
+	binary.Read(buffer, binary.BigEndian, &lo.deviceId)
 	return true
 }
 
+//endregion
+
+//region PendingGroupMessage
+
 //待发送的群组消息临时存储结构
+
 type PendingGroupMessage struct {
 	appid     int64
 	sender    int64
-	device_ID int64 //发送者的设备id
+	deviceId  int64 //发送者的设备id
 	gid       int64
 	timestamp int32
 
@@ -609,7 +671,7 @@ func (gm *PendingGroupMessage) ToData() []byte {
 	buffer := new(bytes.Buffer)
 	binary.Write(buffer, binary.BigEndian, gm.appid)
 	binary.Write(buffer, binary.BigEndian, gm.sender)
-	binary.Write(buffer, binary.BigEndian, gm.device_ID)
+	binary.Write(buffer, binary.BigEndian, gm.deviceId)
 	binary.Write(buffer, binary.BigEndian, gm.gid)
 	binary.Write(buffer, binary.BigEndian, gm.timestamp)
 
@@ -631,7 +693,7 @@ func (gm *PendingGroupMessage) FromData(buff []byte) bool {
 	buffer := bytes.NewBuffer(buff)
 	binary.Read(buffer, binary.BigEndian, &gm.appid)
 	binary.Read(buffer, binary.BigEndian, &gm.sender)
-	binary.Read(buffer, binary.BigEndian, &gm.device_ID)
+	binary.Read(buffer, binary.BigEndian, &gm.deviceId)
 	binary.Read(buffer, binary.BigEndian, &gm.gid)
 	binary.Read(buffer, binary.BigEndian, &gm.timestamp)
 
@@ -653,3 +715,5 @@ func (gm *PendingGroupMessage) FromData(buff []byte) bool {
 
 	return true
 }
+
+//endregion

@@ -32,7 +32,7 @@ func (storage *GroupStorage) SaveGroupMessage(appid int64, gid int64, device_id 
 	msgid := storage.saveMessage(msg)
 
 	last_id, _ := storage.getLastGroupMessageID(appid, gid)
-	lt := &GroupOfflineMessage{appid: appid, gid: gid, msgid: msgid, device_id: device_id, prev_msgid: last_id}
+	lt := &GroupOfflineMessage{appid: appid, gid: gid, msgid: msgid, deviceId: device_id, prevMsgid: last_id}
 	m := &Message{cmd: MSG_GROUP_IM_LIST, body: lt}
 
 	last_id = storage.saveMessage(m)
@@ -43,8 +43,8 @@ func (storage *GroupStorage) SaveGroupMessage(appid int64, gid int64, device_id 
 func (storage *GroupStorage) setLastGroupMessageID(appid int64, gid int64, msgid int64) {
 	id := GroupID{appid, gid}
 	storage.message_index[id] = msgid
-	if msgid > storage.last_id {
-		storage.last_id = msgid
+	if msgid > storage.lastId {
+		storage.lastId = msgid
 	}
 }
 
@@ -105,9 +105,9 @@ func (storage *GroupStorage) LoadGroupHistoryMessages(appid int64, uid int64, gi
 				break
 			}
 		}
-		c = append(c, &EMessage{msgid: off.msgid, device_id: off.device_id, msg: m})
+		c = append(c, &EMessage{msgid: off.msgid, deviceId: off.deviceId, msg: m})
 
-		last_id = off.prev_msgid
+		last_id = off.prevMsgid
 
 		if len(c) >= limit {
 			break
@@ -121,7 +121,7 @@ func (storage *GroupStorage) LoadGroupHistoryMessages(appid int64, uid int64, gi
 func (storage *GroupStorage) createGroupIndex() {
 	log.Info("create group message index begin:", time.Now().UnixNano())
 
-	for i := 0; i <= storage.block_NO; i++ {
+	for i := 0; i <= storage.blockNo; i++ {
 		file := storage.openReadFile(i)
 		if file == nil {
 			//历史消息被删除
@@ -149,8 +149,8 @@ func (storage *GroupStorage) createGroupIndex() {
 				off := msg.body.(*GroupOfflineMessage)
 				id := GroupID{off.appid, off.gid}
 				storage.message_index[id] = msgid
-				if msgid > storage.last_id {
-					storage.last_id = msgid
+				if msgid > storage.lastId {
+					storage.lastId = msgid
 				}
 			}
 		}
@@ -163,10 +163,10 @@ func (storage *GroupStorage) createGroupIndex() {
 func (storage *GroupStorage) repairGroupIndex() {
 	log.Info("repair group message index begin:", time.Now().UnixNano())
 
-	first := storage.getBlockNO(storage.last_id)
-	off := storage.getBlockOffset(storage.last_id)
+	first := storage.getBlockNO(storage.lastId)
+	off := storage.getBlockOffset(storage.lastId)
 
-	for i := first; i <= storage.block_NO; i++ {
+	for i := first; i <= storage.blockNo; i++ {
 		file := storage.openReadFile(i)
 		if file == nil {
 			//历史消息被删除
@@ -201,8 +201,8 @@ func (storage *GroupStorage) repairGroupIndex() {
 				block_NO := i
 				msgid = int64(block_NO)*BLOCK_SIZE + msgid
 				storage.message_index[id] = msgid
-				if msgid > storage.last_id {
-					storage.last_id = msgid
+				if msgid > storage.lastId {
+					storage.lastId = msgid
 				}
 			}
 		}
@@ -244,8 +244,8 @@ func (storage *GroupStorage) readGroupIndex() bool {
 			binary.Read(buffer, binary.BigEndian, &msg_id)
 
 			storage.message_index[id] = msg_id
-			if msg_id > storage.last_id {
-				storage.last_id = msg_id
+			if msg_id > storage.lastId {
+				storage.lastId = msg_id
 			}
 		}
 	}

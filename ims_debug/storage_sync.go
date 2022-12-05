@@ -61,6 +61,8 @@ func (client *SyncClient) Run() {
 	go client.RunLoop()
 }
 
+//region Master
+
 type Master struct {
 	ewt chan *EMessage
 
@@ -102,11 +104,11 @@ func (master *Master) SendBatch(cache []*EMessage) {
 		return
 	}
 
-	batch := &MessageBatch{msgs: make([]*Message, 0, 1000)}
-	batch.first_id = cache[0].msgid
+	batch := &MessageBatch{messages: make([]*Message, 0, 1000)}
+	batch.firstId = cache[0].msgid
 	for _, em := range cache {
-		batch.last_id = em.msgid
-		batch.msgs = append(batch.msgs, em.msg)
+		batch.lastId = em.msgid
+		batch.messages = append(batch.messages, em.msg)
 	}
 	m := &Message{cmd: MSG_STORAGE_SYNC_MESSAGE_BATCH, body: batch}
 	clients := master.CloneClientSet()
@@ -154,6 +156,10 @@ func (master *Master) Start() {
 	go master.Run()
 }
 
+//endregion
+
+//region Slaver
+
 type Slaver struct {
 	addr string
 }
@@ -169,7 +175,7 @@ func (slaver *Slaver) RunOnce(conn *net.TCPConn) {
 
 	seq := 0
 
-	msgid := storage.NextMessageID()
+	msgid := storage.NextMsgid()
 	cursor := &SyncCursor{msgid}
 	log.Info("cursor msgid:", msgid)
 
@@ -222,3 +228,5 @@ func (slaver *Slaver) Run() {
 func (slaver *Slaver) Start() {
 	go slaver.Run()
 }
+
+//endregion

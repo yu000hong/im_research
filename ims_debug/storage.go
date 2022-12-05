@@ -20,7 +20,7 @@ func NewStorage(root string) *Storage {
 
 	r1 := storage.readPeerIndex()
 	r2 := storage.readGroupIndex()
-	storage.last_saved_id = storage.last_id
+	storage.lastSavedId = storage.lastId
 
 	if r1 {
 		storage.repairPeerIndex()
@@ -36,19 +36,19 @@ func NewStorage(root string) *Storage {
 		storage.createGroupIndex()
 	}
 
-	log.Infof("last id:%d last saved id:%d", storage.last_id, storage.last_saved_id)
+	log.Infof("last id:%d last saved id:%d", storage.lastId, storage.lastSavedId)
 	storage.FlushIndex()
 	return storage
 }
 
-func (storage *Storage) NextMessageID() int64 {
+func (storage *Storage) NextMsgid() int64 {
 	storage.mutex.Lock()
 	defer storage.mutex.Unlock()
 	offset, err := storage.file.Seek(0, os.SEEK_END)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	return offset + int64(storage.block_NO)*BLOCK_SIZE
+	return offset + int64(storage.blockNo)*BLOCK_SIZE
 }
 
 func (storage *Storage) execMessage(msg *Message, msgid int64) {
@@ -63,9 +63,9 @@ func (storage *Storage) ExecMessage(msg *Message, msgid int64) {
 }
 
 func (storage *Storage) SaveSyncMessageBatch(mb *MessageBatch) error {
-	id := mb.first_id
+	id := mb.firstId
 	//all message come from one block
-	for _, m := range mb.msgs {
+	for _, m := range mb.messages {
 		emsg := &EMessage{id, 0, m}
 		buffer := new(bytes.Buffer)
 		storage.WriteMessage(buffer, m)
@@ -73,7 +73,7 @@ func (storage *Storage) SaveSyncMessageBatch(mb *MessageBatch) error {
 		storage.SaveSyncMessage(emsg)
 	}
 
-	log.Infof("save batch sync message first id:%d last id:%d\n", mb.first_id, mb.last_id)
+	log.Infof("save batch sync message first id:%d last id:%d\n", mb.firstId, mb.lastId)
 	return nil
 }
 
@@ -84,12 +84,12 @@ func (storage *Storage) SaveSyncMessage(emsg *EMessage) error {
 	n := storage.getBlockNO(emsg.msgid)
 	o := storage.getBlockOffset(emsg.msgid)
 
-	if n < storage.block_NO || (n-storage.block_NO) > 1 {
+	if n < storage.blockNo || (n-storage.blockNo) > 1 {
 		log.Warning("skip msg:", emsg.msgid)
 		return nil
 	}
 
-	if (n - storage.block_NO) == 1 {
+	if (n - storage.blockNo) == 1 {
 		storage.file.Close()
 		storage.openWriteFile(n)
 	}
@@ -169,7 +169,7 @@ func (storage *Storage) LoadSyncMessagesInBackground(cursor int64) chan *Message
 			}
 
 			const BATCH_COUNT = 5000
-			batch := &MessageBatch{msgs: make([]*Message, 0, BATCH_COUNT)}
+			batch := &MessageBatch{messages: make([]*Message, 0, BATCH_COUNT)}
 			for {
 				position, err := file.Seek(0, os.SEEK_CUR)
 				if err != nil {
@@ -181,19 +181,19 @@ func (storage *Storage) LoadSyncMessagesInBackground(cursor int64) chan *Message
 					break
 				}
 				msgid := storage.getMsgId(n, int(position))
-				if batch.first_id == 0 {
-					batch.first_id = msgid
+				if batch.firstId == 0 {
+					batch.firstId = msgid
 				}
 
-				batch.last_id = msgid
-				batch.msgs = append(batch.msgs, msg)
+				batch.lastId = msgid
+				batch.messages = append(batch.messages, msg)
 
-				if len(batch.msgs) >= BATCH_COUNT {
+				if len(batch.messages) >= BATCH_COUNT {
 					c <- batch
-					batch = &MessageBatch{msgs: make([]*Message, 0, BATCH_COUNT)}
+					batch = &MessageBatch{messages: make([]*Message, 0, BATCH_COUNT)}
 				}
 			}
-			if len(batch.msgs) > 0 {
+			if len(batch.messages) > 0 {
 				c <- batch
 			}
 
@@ -211,19 +211,19 @@ func (storage *Storage) SaveIndexFileAndExit() {
 
 func (storage *Storage) flushIndex() {
 	storage.mutex.Lock()
-	last_id := storage.last_id
+	last_id := storage.lastId
 	peer_index := storage.clonePeerIndex()
 	group_index := storage.cloneGroupIndex()
 	storage.mutex.Unlock()
 
 	storage.savePeerIndex(peer_index)
 	storage.saveGroupIndex(group_index)
-	storage.last_saved_id = last_id
+	storage.lastSavedId = last_id
 }
 
 func (storage *Storage) FlushIndex() {
 	do_flush := false
-	if storage.last_id-storage.last_saved_id > 2*BLOCK_SIZE {
+	if storage.lastId-storage.lastSavedId > 2*BLOCK_SIZE {
 		do_flush = true
 	}
 	if do_flush {

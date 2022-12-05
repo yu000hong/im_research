@@ -25,18 +25,18 @@ type StorageFile struct {
 	root  string
 	mutex sync.Mutex
 
-	dirty    bool       //write file dirty
-	block_NO int        //write file block NO
-	file     *os.File   //write
-	files    *lru.Cache //read, block files
+	dirty   bool       //write file dirty
+	blockNo int        //write file block NO
+	file    *os.File   //write
+	files   *lru.Cache //read, block files
 
-	last_id       int64 //peer&group message_index记录的最大消息id
-	last_saved_id int64 //索引文件中最大的消息id
+	lastId      int64 //peer&group message_index记录的最大消息id
+	lastSavedId int64 //索引文件中最大的消息id
 }
 
 func onFileEvicted(key lru.Key, value interface{}) {
 	f := value.(*os.File)
-	f.Close()
+	_ = f.Close()
 }
 
 func NewStorageFile(root string) *StorageFile {
@@ -49,7 +49,7 @@ func NewStorageFile(root string) *StorageFile {
 	//find the last block file
 	pattern := fmt.Sprintf("%s/message_*", storage.root)
 	files, _ := filepath.Glob(pattern)
-	block_NO := 0 //begin from 0
+	blockNo := 0 //begin from 0
 	for _, f := range files {
 		base := filepath.Base(f)
 		if strings.HasPrefix(base, "message_") {
@@ -63,38 +63,38 @@ func NewStorageFile(root string) *StorageFile {
 				log.Fatal("invalid message file:", f)
 			}
 
-			if int(b) > block_NO {
-				block_NO = int(b)
+			if int(b) > blockNo {
+				blockNo = int(b)
 			}
 		}
 	}
 
-	storage.openWriteFile(block_NO)
+	storage.openWriteFile(blockNo)
 
 	return storage
 }
 
 //校验文件结尾是否合法
-func checkFile(file_path string) bool {
-	file, err := os.Open(file_path)
+func checkFile(filePath string) bool {
+	file, err := os.Open(filePath)
 	if err != nil {
 		log.Fatal("open file:", err)
 	}
 
-	file_size, err := file.Seek(0, os.SEEK_END)
+	fileSize, err := file.Seek(0, os.SEEK_END)
 	if err != nil {
 		log.Fatal("seek file")
 	}
 
-	if file_size == HEADER_SIZE {
+	if fileSize == HEADER_SIZE {
 		return true
 	}
 
-	if file_size < HEADER_SIZE {
+	if fileSize < HEADER_SIZE {
 		return false
 	}
 
-	_, err = file.Seek(file_size-4, os.SEEK_SET)
+	_, err = file.Seek(fileSize-4, os.SEEK_SET)
 	if err != nil {
 		log.Fatal("seek file")
 	}
@@ -111,36 +111,36 @@ func checkFile(file_path string) bool {
 }
 
 //open write file
-func (storage *StorageFile) openWriteFile(block_NO int) {
-	path := fmt.Sprintf("%s/message_%d", storage.root, block_NO)
+func (storage *StorageFile) openWriteFile(blockNo int) {
+	path := fmt.Sprintf("%s/message_%d", storage.root, blockNo)
 	log.Info("open/create message file path:", path)
 	file, err := os.OpenFile(path, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0644)
 	if err != nil {
 		log.Fatal("open file:", err)
 	}
-	file_size, err := file.Seek(0, os.SEEK_END)
+	fileSize, err := file.Seek(0, os.SEEK_END)
 	if err != nil {
 		log.Fatal("seek file")
 	}
-	if file_size < HEADER_SIZE && file_size > 0 {
+	if fileSize < HEADER_SIZE && fileSize > 0 {
 		log.Info("file header is't complete")
 		err = file.Truncate(0)
 		if err != nil {
 			log.Fatal("truncate file")
 		}
-		file_size = 0
+		fileSize = 0
 	}
-	if file_size == 0 {
+	if fileSize == 0 {
 		storage.WriteHeader(file)
 	}
 	storage.file = file
-	storage.block_NO = block_NO
+	storage.blockNo = blockNo
 	storage.dirty = false
 }
 
-func (storage *StorageFile) openReadFile(block_NO int) *os.File {
+func (storage *StorageFile) openReadFile(blockNo int) *os.File {
 	//open file readonly mode
-	path := fmt.Sprintf("%s/message_%d", storage.root, block_NO)
+	path := fmt.Sprintf("%s/message_%d", storage.root, blockNo)
 	log.Info("open message block file path:", path)
 	file, err := os.Open(path)
 	if err != nil {
@@ -151,11 +151,11 @@ func (storage *StorageFile) openReadFile(block_NO int) *os.File {
 			log.Fatal(err)
 		}
 	}
-	file_size, err := file.Seek(0, os.SEEK_END)
+	fileSize, err := file.Seek(0, os.SEEK_END)
 	if err != nil {
 		log.Fatal("seek file")
 	}
-	if file_size < HEADER_SIZE && file_size > 0 {
+	if fileSize < HEADER_SIZE && fileSize > 0 {
 		if err != nil {
 			log.Fatal("file header is't complete")
 		}
@@ -163,29 +163,29 @@ func (storage *StorageFile) openReadFile(block_NO int) *os.File {
 	return file
 }
 
-func (storage *StorageFile) getMsgId(block_NO int, offset int) int64 {
-	return int64(block_NO)*BLOCK_SIZE + int64(offset)
+func (storage *StorageFile) getMsgId(blockNo int, offset int) int64 {
+	return int64(blockNo)*BLOCK_SIZE + int64(offset)
 }
 
-func (storage *StorageFile) getBlockNO(msg_id int64) int {
-	return int(msg_id / BLOCK_SIZE)
+func (storage *StorageFile) getBlockNO(msgid int64) int {
+	return int(msgid / BLOCK_SIZE)
 }
 
-func (storage *StorageFile) getBlockOffset(msg_id int64) int {
-	return int(msg_id % BLOCK_SIZE)
+func (storage *StorageFile) getBlockOffset(msgid int64) int {
+	return int(msgid % BLOCK_SIZE)
 }
 
-func (storage *StorageFile) getFile(block_NO int) *os.File {
-	v, ok := storage.files.Get(block_NO)
+func (storage *StorageFile) getFile(blockNo int) *os.File {
+	v, ok := storage.files.Get(blockNo)
 	if ok {
 		return v.(*os.File)
 	}
-	file := storage.openReadFile(block_NO)
+	file := storage.openReadFile(blockNo)
 	if file == nil {
 		return nil
 	}
 
-	storage.files.Add(block_NO, file)
+	storage.files.Add(blockNo, file)
 	return file
 }
 
@@ -220,13 +220,13 @@ func (storage *StorageFile) ReadMessage(file *os.File) *Message {
 	return msg
 }
 
-func (storage *StorageFile) LoadMessage(msg_id int64) *Message {
+func (storage *StorageFile) LoadMessage(msgid int64) *Message {
 	storage.mutex.Lock()
 	defer storage.mutex.Unlock()
-	block_NO := storage.getBlockNO(msg_id)
-	offset := storage.getBlockOffset(msg_id)
+	blockNo := storage.getBlockNO(msgid)
+	offset := storage.getBlockOffset(msgid)
 
-	file := storage.getFile(block_NO)
+	file := storage.getFile(blockNo)
 	if file == nil {
 		log.Warning("can't get file object")
 		return nil
@@ -307,7 +307,7 @@ func (storage *StorageFile) saveMessage(msg *Message) int64 {
 			log.Fatalln("sync storage file:", err)
 		}
 		storage.file.Close()
-		storage.openWriteFile(storage.block_NO + 1)
+		storage.openWriteFile(storage.blockNo + 1)
 		msgid, err = storage.file.Seek(0, os.SEEK_END)
 		if err != nil {
 			log.Fatalln(err)
@@ -326,7 +326,7 @@ func (storage *StorageFile) saveMessage(msg *Message) int64 {
 	}
 	storage.dirty = true
 
-	msgid = int64(storage.block_NO)*BLOCK_SIZE + msgid
+	msgid = int64(storage.blockNo)*BLOCK_SIZE + msgid
 	master.ewt <- &EMessage{msgid: msgid, msg: msg}
 	log.Info("save message:", Command(msg.cmd), " ", msgid)
 	return msgid

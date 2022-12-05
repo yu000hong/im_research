@@ -27,26 +27,26 @@ var storage *Storage
 var config *StorageConfig
 var master *Master
 var mutex sync.Mutex
-var server_summary *ServerSummary
+var serverSummary *ServerSummary
 
 func init() {
-	server_summary = NewServerSummary()
+	serverSummary = NewServerSummary()
 }
 
-func Listen(f func(*net.TCPConn), listen_addr string) {
-	listen, err := net.Listen("tcp", listen_addr)
+func Listen(f func(*net.TCPConn), listenAddr string) {
+	listen, err := net.Listen("tcp", listenAddr)
 	if err != nil {
 		fmt.Println("初始化失败", err.Error())
 		return
 	}
-	tcp_listener, ok := listen.(*net.TCPListener)
+	tcpListener, ok := listen.(*net.TCPListener)
 	if !ok {
 		fmt.Println("listen error")
 		return
 	}
 
 	for {
-		client, err := tcp_listener.AcceptTCP()
+		client, err := tcpListener.AcceptTCP()
 		if err != nil {
 			return
 		}
@@ -54,7 +54,7 @@ func Listen(f func(*net.TCPConn), listen_addr string) {
 	}
 }
 
-func handle_sync_client(conn *net.TCPConn) {
+func handleSyncClient(conn *net.TCPConn) {
 	conn.SetKeepAlive(true)
 	conn.SetKeepAlivePeriod(time.Duration(10 * 60 * time.Second))
 	client := NewSyncClient(conn)
@@ -62,7 +62,7 @@ func handle_sync_client(conn *net.TCPConn) {
 }
 
 func ListenSyncClient() {
-	Listen(handle_sync_client, config.syncListen)
+	Listen(handleSyncClient, config.syncListen)
 }
 
 // Signal handler
