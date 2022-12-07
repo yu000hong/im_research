@@ -17,7 +17,7 @@ func NewServerSummary() *ServerSummary {
 	return new(ServerSummary)
 }
 
-func Summary(res http.ResponseWriter, req *http.Request) {
+func Summary(resp http.ResponseWriter, req *http.Request) {
 	data := make(map[string]interface{})
 	data["goroutine_count"] = runtime.NumGoroutine()
 	data["request_count"] = serverSummary.requestCount
@@ -30,21 +30,21 @@ func Summary(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	res.Header().Add("Content-Type", "application/json")
-	_, err = res.Write(body)
+	resp.Header().Add("Content-Type", "application/json")
+	_, err = resp.Write(body)
 	if err != nil {
 		log.Info("write err:", err)
 	}
 	return
 }
 
-func Stack(res http.ResponseWriter, req *http.Request) {
+func Stack(resp http.ResponseWriter, req *http.Request) {
 	pprof.Lookup("goroutine").WriteTo(os.Stderr, 1)
-	res.WriteHeader(200)
+	resp.WriteHeader(200)
 }
 
-func WriteHttpError(status int, err string, res http.ResponseWriter) {
-	res.Header().Set("Content-Type", "application/json")
+func WriteHttpError(status int, err string, resp http.ResponseWriter) {
+	resp.Header().Set("Content-Type", "application/json")
 	meta := make(map[string]interface{})
 	meta["code"] = status
 	meta["message"] = err
@@ -52,14 +52,14 @@ func WriteHttpError(status int, err string, res http.ResponseWriter) {
 	data := make(map[string]interface{})
 	data["meta"] = meta
 	body, _ := json.Marshal(data)
-	res.WriteHeader(status)
-	res.Write(body)
+	resp.WriteHeader(status)
+	resp.Write(body)
 }
 
-func WriteHttpObj(obj map[string]interface{}, res http.ResponseWriter) {
-	res.Header().Set("Content-Type", "application/json")
+func WriteHttpObj(obj map[string]interface{}, resp http.ResponseWriter) {
+	resp.Header().Set("Content-Type", "application/json")
 	data := make(map[string]interface{})
 	data["data"] = obj
 	body, _ := json.Marshal(data)
-	res.Write(body)
+	resp.Write(body)
 }

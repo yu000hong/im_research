@@ -6,11 +6,11 @@ import "net/url"
 import "strconv"
 import log "github.com/golang/glog"
 
-func WriteHttpObj(data map[string]interface{}, resp http.ResponseWriter) {
+func WriteHttpObj(obj map[string]interface{}, resp http.ResponseWriter) {
 	resp.Header().Set("Content-Type", "application/json")
-	obj := make(map[string]interface{})
-	obj["data"] = data
-	body, _ := json.Marshal(obj)
+	data := make(map[string]interface{})
+	data["data"] = obj
+	body, _ := json.Marshal(data)
 	_, _ = resp.Write(body)
 }
 
@@ -27,7 +27,7 @@ func WriteHttpError(status int, err string, resp http.ResponseWriter) {
 }
 
 // GetOnlineClients 获取当前所有在线的用户
-func GetOnlineClients(w http.ResponseWriter, req *http.Request) {
+func GetOnlineClients(resp http.ResponseWriter, req *http.Request) {
 	clients := GetClientSet()
 
 	type App struct {
@@ -63,40 +63,40 @@ func GetOnlineClients(w http.ResponseWriter, req *http.Request) {
 	res, err := json.Marshal(apps)
 	if err != nil {
 		log.Info("json marshal:", err)
-		WriteHttpError(400, "json marshal err", w)
+		WriteHttpError(400, "json marshal err", resp)
 		return
 	}
-	w.Header().Add("Content-Type", "application/json")
-	_, err = w.Write(res)
+	resp.Header().Add("Content-Type", "application/json")
+	_, err = resp.Write(res)
 	if err != nil {
 		log.Info("write err:", err)
 	}
 }
 
 // GetOnlineStatus 获取单个用户在线状态
-func GetOnlineStatus(w http.ResponseWriter, req *http.Request) {
+func GetOnlineStatus(resp http.ResponseWriter, req *http.Request) {
 	log.Info("get user online status")
 	m, _ := url.ParseQuery(req.URL.RawQuery)
 
 	appid, err := strconv.ParseInt(m.Get("appid"), 10, 64)
 	if err != nil {
 		log.Info("error:", err)
-		WriteHttpError(400, "invalid query param", w)
+		WriteHttpError(400, "invalid query param", resp)
 		return
 	}
 
 	uid, err := strconv.ParseInt(m.Get("uid"), 10, 64)
 	if err != nil {
 		log.Info("error:", err)
-		WriteHttpError(400, "invalid query param", w)
+		WriteHttpError(400, "invalid query param", resp)
 		return
 	}
 
 	online := IsUserOnline(appid, uid)
-	resp := make(map[string]interface{})
-	resp["online"] = online
+	data := make(map[string]interface{})
+	data["online"] = online
 
-	w.Header().Set("Content-Type", "application/json")
-	b, _ := json.Marshal(resp)
-	w.Write(b)
+	resp.Header().Set("Content-Type", "application/json")
+	body, _ := json.Marshal(data)
+	resp.Write(body)
 }

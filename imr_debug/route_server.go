@@ -22,8 +22,8 @@ var (
 var config *RouteConfig
 var clients ClientSet
 var mutex sync.Mutex
-var redis_pool *redis.Pool
-var group_manager *GroupManager
+var redisPool *redis.Pool
+var groupManager *GroupManager
 
 func init() {
 	clients = NewClientSet()
@@ -43,41 +43,40 @@ func RemoveClient(client *Client) {
 	clients.Remove(client)
 }
 
-//clone clients
+// GetClientSet clone clients
 func GetClientSet() ClientSet {
 	mutex.Lock()
 	defer mutex.Unlock()
 
 	s := NewClientSet()
-
 	for c := range clients {
 		s.Add(c)
 	}
 	return s
 }
 
-func FindClientSet(id *AppUserID) ClientSet {
+func FindClientSet(id *AppUser) ClientSet {
 	mutex.Lock()
 	defer mutex.Unlock()
 
 	s := NewClientSet()
 
 	for c := range clients {
-		if c.ContainAppUserID(id) {
+		if c.ContainAppUser(id) {
 			s.Add(c)
 		}
 	}
 	return s
 }
 
-func FindRoomClientSet(id *AppRoomID) ClientSet {
+func FindRoomClientSet(id *AppRoom) ClientSet {
 	mutex.Lock()
 	defer mutex.Unlock()
 
 	s := NewClientSet()
 
 	for c := range clients {
-		if c.ContainAppRoomID(id) {
+		if c.ContainAppRoom(id) {
 			s.Add(c)
 		}
 	}
@@ -88,7 +87,7 @@ func IsUserOnline(appid, uid int64) bool {
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	id := &AppUserID{appid: appid, uid: uid}
+	id := &AppUser{appid: appid, uid: uid}
 
 	for c := range clients {
 		if c.IsAppUserOnline(id) {
@@ -191,20 +190,20 @@ func main() {
 		return
 	}
 
-	config = read_route_cfg(flag.Args()[0])
+	config = readRouteCfg(flag.Args()[0])
 	log.Infof("listen:%s\n", config.listen)
 
 	log.Infof("redis address:%s password:%s db:%d\n",
-		config.redis_address, config.redis_password, config.redis_db)
+		config.redisAddress, config.redisPassword, config.redisDb)
 
-	redis_pool = NewRedisPool(config.redis_address, config.redis_password,
-		config.redis_db)
+	redisPool = NewRedisPool(config.redisAddress, config.redisPassword,
+		config.redisDb)
 
-	group_manager = NewGroupManager()
-	group_manager.Start()
+	groupManager = NewGroupManager()
+	groupManager.Start()
 
-	if len(config.http_listen_address) > 0 {
-		go StartHttpServer(config.http_listen_address)
+	if len(config.httpListenAddress) > 0 {
+		go StartHttpServer(config.httpListenAddress)
 	}
 	ListenClient()
 }

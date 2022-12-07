@@ -7,7 +7,6 @@ import log "github.com/golang/glog"
 import "errors"
 import "encoding/hex"
 
-//平台号
 const PLATFORM_IOS = 1
 const PLATFORM_ANDROID = 2
 const PLATFORM_WEB = 3

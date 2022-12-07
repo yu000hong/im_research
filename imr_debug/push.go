@@ -11,9 +11,9 @@ func (client *Client) IsROMApp(appid int64) bool {
 	return false
 }
 
-//离线消息入apns队列
+// PublishPeerMessage 离线消息入apns队列
 func (client *Client) PublishPeerMessage(appid int64, im *IMMessage) {
-	conn := redis_pool.Get()
+	conn := redisPool.Get()
 	defer conn.Close()
 
 	v := make(map[string]interface{})
@@ -34,7 +34,7 @@ func (client *Client) PublishPeerMessage(appid int64, im *IMMessage) {
 }
 
 func (client *Client) PublishGroupMessage(appid int64, receivers []int64, im *IMMessage) {
-	conn := redis_pool.Get()
+	conn := redisPool.Get()
 	defer conn.Close()
 
 	v := make(map[string]interface{})
@@ -45,18 +45,18 @@ func (client *Client) PublishGroupMessage(appid int64, receivers []int64, im *IM
 	v["group_id"] = im.receiver
 
 	b, _ := json.Marshal(v)
-	var queue_name string
+	var queueName string
 	if client.IsROMApp(appid) {
-		queue_name = fmt.Sprintf("group_push_queue_%d", appid)
+		queueName = fmt.Sprintf("group_push_queue_%d", appid)
 	} else {
-		queue_name = "group_push_queue"
+		queueName = "group_push_queue"
 	}
 
-	client.PushChan(queue_name, b)
+	client.PushChan(queueName, b)
 }
 
 func (client *Client) PublishCustomerMessage(appid, receiver int64, cs *CustomerMessage, cmd int) {
-	conn := redis_pool.Get()
+	conn := redisPool.Get()
 	defer conn.Close()
 
 	v := make(map[string]interface{})
@@ -70,14 +70,14 @@ func (client *Client) PublishCustomerMessage(appid, receiver int64, cs *Customer
 	v["content"] = cs.content
 
 	b, _ := json.Marshal(v)
-	var queue_name string
-	queue_name = "customer_push_queue"
+	var queueName string
+	queueName = "customer_push_queue"
 
-	client.PushChan(queue_name, b)
+	client.PushChan(queueName, b)
 }
 
 func (client *Client) PublishSystemMessage(appid, receiver int64, content string) {
-	conn := redis_pool.Get()
+	conn := redisPool.Get()
 	defer conn.Close()
 
 	v := make(map[string]interface{})
@@ -101,7 +101,7 @@ func (client *Client) PushChan(queue_name string, b []byte) {
 }
 
 func (client *Client) PushQueue(ps []*Push) {
-	conn := redis_pool.Get()
+	conn := redisPool.Get()
 	defer conn.Close()
 
 	begin := time.Now()

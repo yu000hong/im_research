@@ -57,7 +57,7 @@ func (route *Route) GetUids() IntSet {
 	return uids
 }
 
-func (route *Route) ContainRoomId(roomId int64) bool {
+func (route *Route) ContainRoom(roomId int64) bool {
 	route.mutex.Lock()
 	defer route.mutex.Unlock()
 

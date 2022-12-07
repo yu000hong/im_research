@@ -45,7 +45,7 @@ func (group *Group) cloneMembers() map[int64]int64 {
 	return n
 }
 
-//修改成员，在副本修改，避免读取时的lock
+// AddMember 修改成员，在副本修改，避免读取时的lock
 func (group *Group) AddMember(uid int64, timestamp int) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()

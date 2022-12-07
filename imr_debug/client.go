@@ -24,31 +24,28 @@ func NewClient(conn *net.TCPConn) *Client {
 	return client
 }
 
-func (client *Client) ContainAppUserID(id *AppUserID) bool {
-	route := client.appRoute.FindRoute(id.appid)
+func (client *Client) ContainAppUser(user *AppUser) bool {
+	route := client.appRoute.FindRoute(user.appid)
 	if route == nil {
 		return false
 	}
-
-	return route.ContainUid(id.uid)
+	return route.ContainUid(user.uid)
 }
 
-func (client *Client) IsAppUserOnline(id *AppUserID) bool {
-	route := client.appRoute.FindRoute(id.appid)
+func (client *Client) IsAppUserOnline(user *AppUser) bool {
+	route := client.appRoute.FindRoute(user.appid)
 	if route == nil {
 		return false
 	}
-
-	return route.IsUserOnline(id.uid)
+	return route.IsUserOnline(user.uid)
 }
 
-func (client *Client) ContainAppRoomID(id *AppRoomID) bool {
-	route := client.appRoute.FindRoute(id.appid)
+func (client *Client) ContainAppRoom(room *AppRoom) bool {
+	route := client.appRoute.FindRoute(room.appid)
 	if route == nil {
 		return false
 	}
-
-	return route.ContainRoomId(id.room_id)
+	return route.ContainRoom(room.roomId)
 }
 
 func (client *Client) Read() {
@@ -71,15 +68,15 @@ func (client *Client) HandleMessage(msg *Message) {
 	case MSG_SUBSCRIBE:
 		client.HandleSubscribe(msg.body.(*SubscribeMessage))
 	case MSG_UNSUBSCRIBE:
-		client.HandleUnsubscribe(msg.body.(*AppUserID))
+		client.HandleUnsubscribe(msg.body.(*AppUser))
 	case MSG_PUBLISH:
 		client.HandlePublish(msg.body.(*AppMessage))
 	case MSG_PUBLISH_GROUP:
 		client.HandlePublishGroup(msg.body.(*AppMessage))
 	case MSG_SUBSCRIBE_ROOM:
-		client.HandleSubscribeRoom(msg.body.(*AppRoomID))
+		client.HandleSubscribeRoom(msg.body.(*AppRoom))
 	case MSG_UNSUBSCRIBE_ROOM:
-		client.HandleUnsubscribeRoom(msg.body.(*AppRoomID))
+		client.HandleUnsubscribeRoom(msg.body.(*AppRoom))
 	case MSG_PUBLISH_ROOM:
 		client.HandlePublishRoom(msg.body.(*AppMessage))
 	default:
@@ -94,7 +91,7 @@ func (client *Client) HandleSubscribe(id *SubscribeMessage) {
 	route.AddUser(id.uid, on)
 }
 
-func (client *Client) HandleUnsubscribe(id *AppUserID) {
+func (client *Client) HandleUnsubscribe(id *AppUser) {
 	log.Infof("unsubscribe appid:%d uid:%d", id.appid, id.uid)
 	route := client.appRoute.FindOrAddRoute(id.appid)
 	route.RemoveUser(id.uid)
@@ -103,20 +100,20 @@ func (client *Client) HandleUnsubscribe(id *AppUserID) {
 func (client *Client) HandlePublishGroup(amsg *AppMessage) {
 	log.Infof("publish message appid:%d uid:%d msgid:%d cmd:%s", amsg.appid, amsg.receiver, amsg.msgid, Command(amsg.msg.cmd))
 	gid := amsg.receiver
-	group := group_manager.FindGroup(gid)
+	group := groupManager.FindGroup(gid)
 
 	if group != nil && amsg.msg.cmd == MSG_GROUP_IM {
 		msg := amsg.msg
 		members := group.Members()
 		im := msg.body.(*IMMessage)
-		off_members := make([]int64, 0)
+		offMembers := make([]int64, 0)
 		for uid, _ := range members {
 			if im.sender != uid && !IsUserOnline(amsg.appid, uid) {
-				off_members = append(off_members, uid)
+				offMembers = append(offMembers, uid)
 			}
 		}
-		if len(off_members) > 0 {
-			client.PublishGroupMessage(amsg.appid, off_members, im)
+		if len(offMembers) > 0 {
+			client.PublishGroupMessage(amsg.appid, offMembers, im)
 		}
 	}
 
@@ -142,7 +139,7 @@ func (client *Client) HandlePublish(amsg *AppMessage) {
 	log.Infof("publish message appid:%d uid:%d msgid:%d cmd:%s", amsg.appid, amsg.receiver, amsg.msgid, Command(amsg.msg.cmd))
 
 	cmd := amsg.msg.cmd
-	receiver := &AppUserID{appid: amsg.appid, uid: amsg.receiver}
+	receiver := &AppUser{appid: amsg.appid, uid: amsg.receiver}
 	s := FindClientSet(receiver)
 
 	offline := true
@@ -165,7 +162,7 @@ func (client *Client) HandlePublish(amsg *AppMessage) {
 				amsg.msg.body.(*CustomerMessage), amsg.msg.cmd)
 		} else if cmd == MSG_SYSTEM {
 			sys := amsg.msg.body.(*SystemMessage)
-			if config.is_push_system {
+			if config.isPushSystem {
 				client.PublishSystemMessage(amsg.appid, amsg.receiver, sys.notification)
 			}
 		}
@@ -190,21 +187,21 @@ func (client *Client) HandlePublish(amsg *AppMessage) {
 	}
 }
 
-func (client *Client) HandleSubscribeRoom(id *AppRoomID) {
-	log.Infof("subscribe appid:%d room id:%d", id.appid, id.room_id)
+func (client *Client) HandleSubscribeRoom(id *AppRoom) {
+	log.Infof("subscribe appid:%d room id:%d", id.appid, id.roomId)
 	route := client.appRoute.FindOrAddRoute(id.appid)
-	route.AddRoom(id.room_id)
+	route.AddRoom(id.roomId)
 }
 
-func (client *Client) HandleUnsubscribeRoom(id *AppRoomID) {
-	log.Infof("unsubscribe appid:%d room id:%d", id.appid, id.room_id)
+func (client *Client) HandleUnsubscribeRoom(id *AppRoom) {
+	log.Infof("unsubscribe appid:%d room id:%d", id.appid, id.roomId)
 	route := client.appRoute.FindOrAddRoute(id.appid)
-	route.RemoveRoom(id.room_id)
+	route.RemoveRoom(id.roomId)
 }
 
 func (client *Client) HandlePublishRoom(amsg *AppMessage) {
 	log.Infof("publish room message appid:%d room id:%d cmd:%s", amsg.appid, amsg.receiver, Command(amsg.msg.cmd))
-	receiver := &AppRoomID{appid: amsg.appid, room_id: amsg.receiver}
+	receiver := &AppRoom{appid: amsg.appid, roomId: amsg.receiver}
 	s := FindRoomClientSet(receiver)
 
 	msg := &Message{cmd: MSG_PUBLISH_ROOM, body: amsg}
@@ -244,9 +241,9 @@ func (client *Client) read() *Message {
 }
 
 func (client *Client) send(msg *Message) {
-	SendMessage(client.conn, msg)
+	_ = SendMessage(client.conn, msg)
 }
 
 func (client *Client) close() {
-	client.conn.Close()
+	_ = client.conn.Close()
 }

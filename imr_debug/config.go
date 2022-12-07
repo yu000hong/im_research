@@ -5,70 +5,69 @@ import "log"
 import "github.com/richmonkey/cfg"
 
 type RouteConfig struct {
-	listen              string
-	mysqldb_datasource  string
-	redis_address       string
-	redis_password      string
-	redis_db            int
-	is_push_system      bool
-	http_listen_address string
+	listen            string
+	mysqldbDatasource string
+	redisAddress      string
+	redisPassword     string
+	redisDb           int
+	isPushSystem      bool
+	httpListenAddress string
 }
 
-func get_int(app_cfg map[string]string, key string) int {
-	concurrency, present := app_cfg[key]
+func getInt(appCfg map[string]string, key string) int {
+	value, present := appCfg[key]
 	if !present {
 		log.Fatalf("key:%s non exist", key)
 	}
-	n, err := strconv.ParseInt(concurrency, 10, 64)
+	n, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
 		log.Fatalf("key:%s is't integer", key)
 	}
 	return int(n)
 }
 
-func get_opt_int(app_cfg map[string]string, key string) int64 {
-	concurrency, present := app_cfg[key]
+func getOptInt(appCfg map[string]string, key string) int {
+	value, present := appCfg[key]
 	if !present {
 		return 0
 	}
-	n, err := strconv.ParseInt(concurrency, 10, 64)
+	n, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
 		log.Fatalf("key:%s is't integer", key)
 	}
-	return n
+	return int(n)
 }
 
-func get_string(app_cfg map[string]string, key string) string {
-	concurrency, present := app_cfg[key]
+func getString(appCfg map[string]string, key string) string {
+	value, present := appCfg[key]
 	if !present {
 		log.Fatalf("key:%s non exist", key)
 	}
-	return concurrency
+	return value
 }
 
-func get_opt_string(app_cfg map[string]string, key string) string {
-	concurrency, present := app_cfg[key]
+func getOptString(appCfg map[string]string, key string) string {
+	value, present := appCfg[key]
 	if !present {
 		return ""
 	}
-	return concurrency
+	return value
 }
 
-func read_route_cfg(cfg_path string) *RouteConfig {
+func readRouteCfg(cfgPath string) *RouteConfig {
 	config := new(RouteConfig)
-	app_cfg := make(map[string]string)
-	err := cfg.Load(cfg_path, app_cfg)
+	appCfg := make(map[string]string)
+	err := cfg.Load(cfgPath, appCfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	config.listen = get_string(app_cfg, "listen")
-	config.mysqldb_datasource = get_string(app_cfg, "mysqldb_source")
-	config.redis_address = get_string(app_cfg, "redis_address")
-	config.redis_password = get_opt_string(app_cfg, "redis_password")
-	db := get_opt_int(app_cfg, "redis_db")
-	config.redis_db = int(db)
-	config.is_push_system = get_opt_int(app_cfg, "is_push_system") == 1
-	config.http_listen_address = get_opt_string(app_cfg, "http_listen_address")
+	config.listen = getString(appCfg, "listen")
+	config.mysqldbDatasource = getString(appCfg, "mysqldb_source")
+	config.redisAddress = getString(appCfg, "redis_address")
+	config.redisPassword = getOptString(appCfg, "redis_password")
+	config.redisDb = getOptInt(appCfg, "redis_db")
+	config.isPushSystem = getOptInt(appCfg, "is_push_system") == 1
+	config.httpListenAddress = getOptString(appCfg, "http_listen_address")
 	return config
 }

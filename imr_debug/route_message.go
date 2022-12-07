@@ -16,13 +16,13 @@ const MSG_PUBLISH_ROOM = 138
 
 func init() {
 	messageCreators[MSG_SUBSCRIBE] = func() IMessage { return new(SubscribeMessage) }
-	messageCreators[MSG_UNSUBSCRIBE] = func() IMessage { return new(AppUserID) }
+	messageCreators[MSG_UNSUBSCRIBE] = func() IMessage { return new(AppUser) }
 	messageCreators[MSG_PUBLISH] = func() IMessage { return new(AppMessage) }
 
 	messageCreators[MSG_PUBLISH_GROUP] = func() IMessage { return new(AppMessage) }
 
-	messageCreators[MSG_SUBSCRIBE_ROOM] = func() IMessage { return new(AppRoomID) }
-	messageCreators[MSG_UNSUBSCRIBE_ROOM] = func() IMessage { return new(AppRoomID) }
+	messageCreators[MSG_SUBSCRIBE_ROOM] = func() IMessage { return new(AppRoom) }
+	messageCreators[MSG_UNSUBSCRIBE_ROOM] = func() IMessage { return new(AppRoom) }
 	messageCreators[MSG_PUBLISH_ROOM] = func() IMessage { return new(AppMessage) }
 
 	messageDescriptions[MSG_SUBSCRIBE] = "MSG_SUBSCRIBE"
