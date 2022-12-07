@@ -19,14 +19,13 @@ func NewServerSummary() *ServerSummary {
 	return s
 }
 
-
 func Summary(rw http.ResponseWriter, req *http.Request) {
 	obj := make(map[string]interface{})
 	obj["goroutine_count"] = runtime.NumGoroutine()
-	obj["connection_count"] = server_summary.nconnections
-	obj["client_count"] = server_summary.nclients
-	obj["in_message_count"] = server_summary.in_message_count
-	obj["out_message_count"] = server_summary.out_message_count
+	obj["connection_count"] = serverSummary.nconnections
+	obj["client_count"] = serverSummary.nclients
+	obj["in_message_count"] = serverSummary.in_message_count
+	obj["out_message_count"] = serverSummary.out_message_count
 
 	res, err := json.Marshal(obj)
 	if err != nil {

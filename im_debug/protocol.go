@@ -7,41 +7,39 @@ import log "github.com/golang/glog"
 import "errors"
 import "encoding/hex"
 
-//平台号
-const PLATFORM_IOS = 1
-const PLATFORM_ANDROID = 2
-const PLATFORM_WEB = 3
+const PlatformIos = 1
+const PlatformAndroid = 2
+const PlatformWeb = 3
 
-const DEFAULT_VERSION = 1
-
-const MSG_HEADER_SIZE = 12
-
-var message_descriptions map[int]string = make(map[int]string)
+const DefaultVersion = 1
+const MsgHeaderSize = 12
 
 type MessageCreator func() IMessage
 
-var message_creators map[int]MessageCreator = make(map[int]MessageCreator)
-
 type VersionMessageCreator func() IVersionMessage
 
-var vmessage_creators map[int]VersionMessageCreator = make(map[int]VersionMessageCreator)
+var messageDescriptions = make(map[int]string)
+
+var messageCreators = make(map[int]MessageCreator)
+
+var vmessageCreators = make(map[int]VersionMessageCreator)
 
 //true client->server
-var external_messages [256]bool
+var externalMessages [256]bool
 
 func WriteHeader(len int32, seq int32, cmd byte, version byte, flag byte, buffer io.Writer) {
-	binary.Write(buffer, binary.BigEndian, len)
-	binary.Write(buffer, binary.BigEndian, seq)
+	_ = binary.Write(buffer, binary.BigEndian, len)
+	_ = binary.Write(buffer, binary.BigEndian, seq)
 	t := []byte{cmd, byte(version), flag, 0}
-	buffer.Write(t)
+	_, _ = buffer.Write(t)
 }
 
 func ReadHeader(buff []byte) (int, int, int, int, int) {
 	var length int32
 	var seq int32
 	buffer := bytes.NewBuffer(buff)
-	binary.Read(buffer, binary.BigEndian, &length)
-	binary.Read(buffer, binary.BigEndian, &seq)
+	_ = binary.Read(buffer, binary.BigEndian, &length)
+	_ = binary.Read(buffer, binary.BigEndian, &seq)
 	cmd, _ := buffer.ReadByte()
 	version, _ := buffer.ReadByte()
 	flag, _ := buffer.ReadByte()
@@ -70,7 +68,7 @@ func SendMessage(conn io.Writer, msg *Message) error {
 	return nil
 }
 
-func ReceiveLimitMessage(conn io.Reader, limit_size int, external bool) *Message {
+func ReceiveLimitMessage(conn io.Reader, limitSize int, external bool) *Message {
 	buff := make([]byte, 12)
 	_, err := io.ReadFull(conn, buff)
 	if err != nil {
@@ -79,14 +77,14 @@ func ReceiveLimitMessage(conn io.Reader, limit_size int, external bool) *Message
 	}
 
 	length, seq, cmd, version, flag := ReadHeader(buff)
-	if length < 0 || length >= limit_size {
+	if length < 0 || length >= limitSize {
 		log.Info("invalid len:", length)
 		return nil
 	}
 
 	//0 <= cmd <= 255
 	//收到客户端非法消息，断开链接
-	if external && !external_messages[cmd] {
+	if external && !externalMessages[cmd] {
 		log.Warning("invalid external message cmd:", Command(cmd))
 		return nil
 	}
@@ -115,12 +113,12 @@ func ReceiveMessage(conn io.Reader) *Message {
 	return ReceiveLimitMessage(conn, 32*1024, false)
 }
 
-//接受客户端消息(external messages)
+// ReceiveClientMessage 接受客户端消息(external messages)
 func ReceiveClientMessage(conn io.Reader) *Message {
 	return ReceiveLimitMessage(conn, 32*1024, true)
 }
 
-//消息大小限制在1M
+// ReceiveStorageSyncMessage 消息大小限制在1M
 func ReceiveStorageSyncMessage(conn io.Reader) *Message {
 	return ReceiveLimitMessage(conn, 32*1024*1024, false)
 }

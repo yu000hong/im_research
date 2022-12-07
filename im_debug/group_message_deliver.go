@@ -260,7 +260,7 @@ func (storage *GroupMessageDeliver) saveMessage(msg *Message) int64 {
 	binary.Write(buffer, binary.BigEndian, int32(MAGIC))
 
 	body := msg.ToData()
-	var msg_len int32 = MSG_HEADER_SIZE + int32(len(body))
+	var msg_len int32 = MsgHeaderSize + int32(len(body))
 	binary.Write(buffer, binary.BigEndian, msg_len)
 
 	WriteHeader(int32(len(body)), int32(msg.seq), byte(msg.cmd),
@@ -315,7 +315,7 @@ func (storage *GroupMessageDeliver) sendMessage(appid int64, uid int64, sender i
 
 	PushMessage(appid, uid, msg)
 
-	route := app_route.FindRoute(appid)
+	route := appRoute.FindRoute(appid)
 	if route == nil {
 		log.Warningf("can't send message, appid:%d uid:%d cmd:%s", appid, uid, Command(msg.cmd))
 		return false
@@ -328,7 +328,7 @@ func (storage *GroupMessageDeliver) sendMessage(appid int64, uid int64, sender i
 
 	for c, _ := range clients {
 		//不再发送给自己
-		if c.device_ID == device_ID && sender == uid {
+		if c.deviceId == device_ID && sender == uid {
 			continue
 		}
 
@@ -340,7 +340,7 @@ func (storage *GroupMessageDeliver) sendMessage(appid int64, uid int64, sender i
 
 func (storage *GroupMessageDeliver) sendGroupMessage(gm *PendingGroupMessage) bool {
 	msg := &IMMessage{sender: gm.sender, receiver: gm.gid, timestamp: gm.timestamp, content: gm.content}
-	m := &Message{cmd: MSG_GROUP_IM, version: DEFAULT_VERSION, body: msg}
+	m := &Message{cmd: MsgGroupIm, version: DefaultVersion, body: msg}
 
 	members := gm.members
 	for _, member := range members {
@@ -354,7 +354,7 @@ func (storage *GroupMessageDeliver) sendGroupMessage(gm *PendingGroupMessage) bo
 		if msg.sender != member {
 			PushMessage(gm.appid, member, m)
 		}
-		notify := &Message{cmd: MSG_SYNC_NOTIFY, body: &SyncKey{sync_key: msgid}}
+		notify := &Message{cmd: MsgSyncNotify, body: &SyncKey{syncKey: msgid}}
 		storage.sendMessage(gm.appid, member, gm.sender, gm.device_ID, notify)
 	}
 
@@ -393,7 +393,7 @@ func (storage *GroupMessageDeliver) sendPendingMessage() {
 			continue
 		}
 
-		if msg.cmd != MSG_PENDING_GROUP_MESSAGE {
+		if msg.cmd != MsgPendingGroupMessage {
 			continue
 		}
 

@@ -7,7 +7,7 @@ import "github.com/gomodule/redigo/redis"
 import "errors"
 
 func GetSyncKey(appid int64, uid int64) int64 {
-	conn := redis_pool.Get()
+	conn := redisPool.Get()
 	defer conn.Close()
 
 	key := fmt.Sprintf("users_%d_%d", appid, uid)
@@ -20,12 +20,12 @@ func GetSyncKey(appid int64, uid int64) int64 {
 	return origin
 }
 
-func GetGroupSyncKey(appid int64, uid int64, group_id int64) int64 {
-	conn := redis_pool.Get()
+func GetGroupSyncKey(appid int64, uid int64, groupId int64) int64 {
+	conn := redisPool.Get()
 	defer conn.Close()
 
 	key := fmt.Sprintf("users_%d_%d", appid, uid)
-	field := fmt.Sprintf("group_sync_key_%d", group_id)
+	field := fmt.Sprintf("group_sync_key_%d", groupId)
 
 	origin, err := redis.Int64(conn.Do("HGET", key, field))
 	if err != nil && err != redis.ErrNil {
@@ -35,33 +35,33 @@ func GetGroupSyncKey(appid int64, uid int64, group_id int64) int64 {
 	return origin
 }
 
-func SaveSyncKey(appid int64, uid int64, sync_key int64) {
-	conn := redis_pool.Get()
+func SaveSyncKey(appid int64, uid int64, syncKey int64) {
+	conn := redisPool.Get()
 	defer conn.Close()
 
 	key := fmt.Sprintf("users_%d_%d", appid, uid)
 
-	_, err := conn.Do("HSET", key, "sync_key", sync_key)
+	_, err := conn.Do("HSET", key, "sync_key", syncKey)
 	if err != nil {
 		log.Warning("hset error:", err)
 	}
 }
 
-func SaveGroupSyncKey(appid int64, uid int64, group_id int64, sync_key int64) {
-	conn := redis_pool.Get()
+func SaveGroupSyncKey(appid int64, uid int64, groupId int64, syncKey int64) {
+	conn := redisPool.Get()
 	defer conn.Close()
 
 	key := fmt.Sprintf("users_%d_%d", appid, uid)
-	field := fmt.Sprintf("group_sync_key_%d", group_id)
+	field := fmt.Sprintf("group_sync_key_%d", groupId)
 
-	_, err := conn.Do("HSET", key, field, sync_key)
+	_, err := conn.Do("HSET", key, field, syncKey)
 	if err != nil {
 		log.Warning("hset error:", err)
 	}
 }
 
 func GetUserForbidden(appid int64, uid int64) (int, error) {
-	conn := redis_pool.Get()
+	conn := redisPool.Get()
 	defer conn.Close()
 
 	key := fmt.Sprintf("users_%d_%d", appid, uid)
@@ -76,13 +76,13 @@ func GetUserForbidden(appid int64, uid int64) (int, error) {
 }
 
 func LoadUserAccessToken(token string) (int64, int64, int, bool, error) {
-	conn := redis_pool.Get()
+	conn := redisPool.Get()
 	defer conn.Close()
 
 	key := fmt.Sprintf("access_token_%s", token)
 	var uid int64
 	var appid int64
-	var notification_on int8
+	var notificationOn int8
 	var forbidden int
 
 	exists, err := redis.Bool(conn.Do("EXISTS", key))
@@ -100,17 +100,17 @@ func LoadUserAccessToken(token string) (int64, int64, int, bool, error) {
 		return 0, 0, 0, false, err
 	}
 
-	_, err = redis.Scan(reply, &uid, &appid, &notification_on, &forbidden)
+	_, err = redis.Scan(reply, &uid, &appid, &notificationOn, &forbidden)
 	if err != nil {
 		log.Warning("scan error:", err)
 		return 0, 0, 0, false, err
 	}
 
-	return appid, uid, forbidden, notification_on != 0, nil
+	return appid, uid, forbidden, notificationOn != 0, nil
 }
 
 func CountUser(appid int64, uid int64) {
-	conn := redis_pool.Get()
+	conn := redisPool.Get()
 	defer conn.Close()
 
 	key := fmt.Sprintf("statistics_users_%d", appid)
@@ -120,8 +120,8 @@ func CountUser(appid int64, uid int64) {
 	}
 }
 
-func CountDAU(appid int64, uid int64) {
-	conn := redis_pool.Get()
+func CountDau(appid int64, uid int64) {
+	conn := redisPool.Get()
 	defer conn.Close()
 
 	now := time.Now()
@@ -134,7 +134,7 @@ func CountDAU(appid int64, uid int64) {
 }
 
 func SetUserUnreadCount(appid int64, uid int64, count int32) {
-	conn := redis_pool.Get()
+	conn := redisPool.Get()
 	defer conn.Close()
 
 	key := fmt.Sprintf("users_%d_%d", appid, uid)

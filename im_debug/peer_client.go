@@ -13,7 +13,7 @@ func (client *PeerClient) Login() {
 
 	channel.Subscribe(client.appid, client.uid, client.online)
 
-	for _, c := range group_route_channels {
+	for _, c := range groupRouteChannels {
 		if c == channel {
 			continue
 		}
@@ -29,7 +29,7 @@ func (client *PeerClient) Logout() {
 		channel := GetChannel(client.uid)
 		channel.Unsubscribe(client.appid, client.uid, client.online)
 
-		for _, c := range group_route_channels {
+		for _, c := range groupRouteChannels {
 			if c == channel {
 				continue
 			}
@@ -43,7 +43,7 @@ func (client *PeerClient) HandleSync(sync_key *SyncKey) {
 	if client.uid == 0 {
 		return
 	}
-	last_id := sync_key.sync_key
+	last_id := sync_key.syncKey
 
 	if last_id == 0 {
 		last_id = GetSyncKey(client.appid, client.uid)
@@ -52,20 +52,20 @@ func (client *PeerClient) HandleSync(sync_key *SyncKey) {
 	rpc := GetStorageRPCClient(client.uid)
 
 	s := &SyncHistory{
-		AppID:     client.appid,
+		Appid:     client.appid,
 		Uid:       client.uid,
-		DeviceID:  client.device_ID,
-		LastMsgID: last_id,
+		DeviceId:  client.deviceId,
+		LastMsgid: last_id,
 	}
 
-	log.Infof("syncing message:%d %d %d %d", client.appid, client.uid, client.device_ID, last_id)
+	log.Infof("syncing message:%d %d %d %d", client.appid, client.uid, client.deviceId, last_id)
 
 	resp, err := rpc.Call("SyncMessage", s)
 	if err != nil {
 		log.Warning("sync message err:", err)
 		return
 	}
-	client.sync_count += 1
+	client.syncCount += 1
 
 	ph := resp.(*PeerHistoryMessage)
 	messages := ph.Messages
@@ -73,40 +73,40 @@ func (client *PeerClient) HandleSync(sync_key *SyncKey) {
 	msgs := make([]*Message, 0, len(messages)+2)
 
 	sk := &SyncKey{last_id}
-	msgs = append(msgs, &Message{cmd: MSG_SYNC_BEGIN, body: sk})
+	msgs = append(msgs, &Message{cmd: MsgSyncBegin, body: sk})
 
 	for i := len(messages) - 1; i >= 0; i-- {
 		msg := messages[i]
-		log.Info("message:", msg.MsgID, Command(msg.Cmd))
-		m := &Message{cmd: int(msg.Cmd), version: DEFAULT_VERSION}
+		log.Info("message:", msg.Msgid, Command(msg.Cmd))
+		m := &Message{cmd: int(msg.Cmd), version: DefaultVersion}
 		m.FromData(msg.Raw)
-		sk.sync_key = msg.MsgID
+		sk.syncKey = msg.Msgid
 
-		if config.sync_self {
+		if config.syncSelf {
 			//连接成功后的首次同步，自己发送的消息也下发给客户端
 			//之后的同步则过滤掉所有自己在当前设备发出的消息
 			//这是为了解决服务端已经发出消息，但是对发送端的消息ack丢失的问题
-			if client.sync_count > 1 && client.isSender(m, msg.DeviceID) {
+			if client.syncCount > 1 && client.isSender(m, msg.DeviceId) {
 				continue
 			}
 		} else {
 			//过滤掉所有自己在当前设备发出的消息
-			if client.isSender(m, msg.DeviceID) {
+			if client.isSender(m, msg.DeviceId) {
 				continue
 			}
 		}
-		if client.isSender(m, msg.DeviceID) {
-			m.flag |= MESSAGE_FLAG_SELF
+		if client.isSender(m, msg.DeviceId) {
+			m.flag |= MessageFlagSelf
 		}
 		msgs = append(msgs, m)
 	}
 
-	if ph.LastMsgID < last_id && ph.LastMsgID > 0 {
-		sk.sync_key = ph.LastMsgID
-		log.Warningf("client last id:%d server last id:%d", last_id, ph.LastMsgID)
+	if ph.LastMsgid < last_id && ph.LastMsgid > 0 {
+		sk.syncKey = ph.LastMsgid
+		log.Warningf("client last id:%d server last id:%d", last_id, ph.LastMsgid)
 	}
 
-	msgs = append(msgs, &Message{cmd: MSG_SYNC_END, body: sk})
+	msgs = append(msgs, &Message{cmd: MsgSyncEnd, body: sk})
 
 	client.EnqueueMessages(msgs)
 }
@@ -116,15 +116,15 @@ func (client *PeerClient) HandleSyncKey(sync_key *SyncKey) {
 		return
 	}
 
-	last_id := sync_key.sync_key
-	log.Infof("sync key:%d %d %d %d", client.appid, client.uid, client.device_ID, last_id)
+	last_id := sync_key.syncKey
+	log.Infof("sync key:%d %d %d %d", client.appid, client.uid, client.deviceId, last_id)
 	if last_id > 0 {
 		s := &SyncHistory{
-			AppID:     client.appid,
+			Appid:     client.appid,
 			Uid:       client.uid,
-			LastMsgID: last_id,
+			LastMsgid: last_id,
 		}
-		sync_c <- s
+		syncC <- s
 	}
 }
 
@@ -140,20 +140,20 @@ func (client *PeerClient) HandleIMMessage(message *Message) {
 		log.Warningf("im message sender:%d client uid:%d\n", msg.sender, client.uid)
 		return
 	}
-	if message.flag&MESSAGE_FLAG_TEXT != 0 {
+	if message.flag&MessageFlagText != 0 {
 		FilterDirtyWord(msg)
 	}
 	msg.timestamp = int32(time.Now().Unix())
-	m := &Message{cmd: MSG_IM, version: DEFAULT_VERSION, body: msg}
+	m := &Message{cmd: MsgIm, version: DefaultVersion, body: msg}
 
-	msgid, err := SaveMessage(client.appid, msg.receiver, client.device_ID, m)
+	msgid, err := SaveMessage(client.appid, msg.receiver, client.deviceId, m)
 	if err != nil {
 		log.Errorf("save peer message:%d %d err:", msg.sender, msg.receiver, err)
 		return
 	}
 
 	//保存到自己的消息队列，这样用户的其它登陆点也能接受到自己发出的消息
-	msgid2, err := SaveMessage(client.appid, msg.sender, client.device_ID, m)
+	msgid2, err := SaveMessage(client.appid, msg.sender, client.deviceId, m)
 	if err != nil {
 		log.Errorf("save peer message:%d %d err:", msg.sender, msg.receiver, err)
 		return
@@ -163,20 +163,20 @@ func (client *PeerClient) HandleIMMessage(message *Message) {
 	PushMessage(client.appid, msg.receiver, m)
 
 	//发送同步的通知消息
-	notify := &Message{cmd: MSG_SYNC_NOTIFY, body: &SyncKey{msgid}}
+	notify := &Message{cmd: MsgSyncNotify, body: &SyncKey{msgid}}
 	client.SendMessage(msg.receiver, notify)
 
 	//发送给自己的其它登录点
-	notify = &Message{cmd: MSG_SYNC_NOTIFY, body: &SyncKey{msgid2}}
+	notify = &Message{cmd: MsgSyncNotify, body: &SyncKey{msgid2}}
 	client.SendMessage(client.uid, notify)
 
-	ack := &Message{cmd: MSG_ACK, body: &MessageACK{int32(seq)}}
+	ack := &Message{cmd: MsgAck, body: &MessageACK{int32(seq)}}
 	r := client.EnqueueMessage(ack)
 	if !r {
 		log.Warning("send peer message ack error")
 	}
 
-	atomic.AddInt64(&server_summary.in_message_count, 1)
+	atomic.AddInt64(&serverSummary.in_message_count, 1)
 	log.Infof("peer message sender:%d receiver:%d msgid:%d\n", msg.sender, msg.receiver, msgid)
 }
 
@@ -191,24 +191,24 @@ func (client *PeerClient) HandleRTMessage(msg *Message) {
 		return
 	}
 
-	m := &Message{cmd: MSG_RT, body: rt}
+	m := &Message{cmd: MsgRt, body: rt}
 	client.SendMessage(rt.receiver, m)
 
-	atomic.AddInt64(&server_summary.in_message_count, 1)
+	atomic.AddInt64(&serverSummary.in_message_count, 1)
 	log.Infof("realtime message sender:%d receiver:%d", rt.sender, rt.receiver)
 }
 
 func (client *PeerClient) HandleMessage(msg *Message) {
 	switch msg.cmd {
-	case MSG_IM:
+	case MsgIm:
 		client.HandleIMMessage(msg)
-	case MSG_RT:
+	case MsgRt:
 		client.HandleRTMessage(msg)
-	case MSG_UNREAD_COUNT:
+	case MsgUnreadCount:
 		client.HandleUnreadCount(msg.body.(*MessageUnreadCount))
-	case MSG_SYNC:
+	case MsgSync:
 		client.HandleSync(msg.body.(*SyncKey))
-	case MSG_SYNC_KEY:
+	case MsgSyncKey:
 		client.HandleSyncKey(msg.body.(*SyncKey))
 	}
 }

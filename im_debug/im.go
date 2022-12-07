@@ -17,74 +17,74 @@ import "github.com/importcjj/sensitive"
 import "github.com/bitly/go-simplejson"
 
 var (
-	VERSION       string
-	BUILD_TIME    string
-	GO_VERSION    string
-	GIT_COMMIT_ID string
-	GIT_BRANCH    string
+	Version     string
+	BuildTime   string
+	GoVersion   string
+	GitCommitId string
+	GitBranch   string
 )
 
 //storage server,  peer, group, customer message
-var rpc_clients []*gorpc.DispatcherClient
+var rpcClients []*gorpc.DispatcherClient
 
 //super group storage server
-var group_rpc_clients []*gorpc.DispatcherClient
+var groupRpcClients []*gorpc.DispatcherClient
 
 //route server
-var route_channels []*Channel
+var routeChannels []*Channel
 
 //super group route server
-var group_route_channels []*Channel
+var groupRouteChannels []*Channel
 
-var app_route *AppRoute
-var group_manager *GroupManager
-var redis_pool *redis.Pool
+var appRoute *AppRoute
+var groupManager *GroupManager
+var redisPool *redis.Pool
 
 var config *Config
-var server_summary *ServerSummary
+var serverSummary *ServerSummary
 
-var sync_c chan *SyncHistory
-var group_sync_c chan *SyncGroupHistory
+var syncC chan *SyncHistory
+var groupSyncC chan *SyncGroupHistory
 
 //round-robin
-var current_deliver_index uint64
-var group_message_delivers []*GroupMessageDeliver
+var currentDeliverIndex uint64
+var groupMessageDelivers []*GroupMessageDeliver
 var filter *sensitive.Filter
 
 func init() {
-	app_route = NewAppRoute()
-	server_summary = NewServerSummary()
-	sync_c = make(chan *SyncHistory, 100)
-	group_sync_c = make(chan *SyncGroupHistory, 100)
+	appRoute = NewAppRoute()
+	serverSummary = NewServerSummary()
+	syncC = make(chan *SyncHistory, 100)
+	groupSyncC = make(chan *SyncGroupHistory, 100)
 }
 
-func handle_client(conn net.Conn) {
+func handleClient(conn net.Conn) {
 	log.Infoln("handle new connection")
 	client := NewClient(conn)
 	client.Run()
 }
 
-func handle_ssl_client(conn net.Conn) {
+func handleSslClient(conn net.Conn) {
 	log.Infoln("handle new ssl connection")
 	client := NewClient(conn)
 	client.Run()
 }
 
 func Listen(f func(net.Conn), port int) {
-	listen_addr := fmt.Sprintf("0.0.0.0:%d", port)
-	listen, err := net.Listen("tcp", listen_addr)
+	listenAddr := fmt.Sprintf("0.0.0.0:%d", port)
+	listen, err := net.Listen("tcp", listenAddr)
 	if err != nil {
 		log.Errorf("listen err:%s", err)
 		return
 	}
-	tcp_listener, ok := listen.(*net.TCPListener)
+	tcpListener, ok := listen.(*net.TCPListener)
 	if !ok {
 		log.Error("listen err")
 		return
 	}
 
 	for {
-		client, err := tcp_listener.AcceptTCP()
+		client, err := tcpListener.AcceptTCP()
 		if err != nil {
 			log.Errorf("accept err:%s", err)
 			return
@@ -94,11 +94,11 @@ func Listen(f func(net.Conn), port int) {
 }
 
 func ListenClient() {
-	Listen(handle_client, config.port)
+	Listen(handleClient, config.port)
 }
 
-func ListenSSL(port int, cert_file, key_file string) {
-	cert, err := tls.LoadX509KeyPair(cert_file, key_file)
+func ListenSSL(port int, certFile, keyFile string) {
+	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
 		log.Fatal("load cert err:", err)
 		return
@@ -116,7 +116,7 @@ func ListenSSL(port int, cert_file, key_file string) {
 		if err != nil {
 			log.Fatal("ssl accept err:", err)
 		}
-		handle_ssl_client(conn)
+		handleSslClient(conn)
 	}
 }
 
@@ -148,65 +148,65 @@ func NewRedisPool(server, password string, db int) *redis.Pool {
 	}
 }
 
-//个人消息／普通群消息／客服消息
+// GetStorageRPCClient 个人消息／普通群消息／客服消息
 func GetStorageRPCClient(uid int64) *gorpc.DispatcherClient {
 	if uid < 0 {
 		uid = -uid
 	}
-	index := uid % int64(len(rpc_clients))
-	return rpc_clients[index]
+	index := uid % int64(len(rpcClients))
+	return rpcClients[index]
 }
 
-//超级群消息
-func GetGroupStorageRPCClient(group_id int64) *gorpc.DispatcherClient {
-	if group_id < 0 {
-		group_id = -group_id
+// GetGroupStorageRPCClient 超级群消息
+func GetGroupStorageRPCClient(groupId int64) *gorpc.DispatcherClient {
+	if groupId < 0 {
+		groupId = -groupId
 	}
-	index := group_id % int64(len(group_rpc_clients))
-	return group_rpc_clients[index]
+	index := groupId % int64(len(groupRpcClients))
+	return groupRpcClients[index]
 }
 
 func GetChannel(uid int64) *Channel {
 	if uid < 0 {
 		uid = -uid
 	}
-	index := uid % int64(len(route_channels))
-	return route_channels[index]
+	index := uid % int64(len(routeChannels))
+	return routeChannels[index]
 }
 
-func GetGroupChannel(group_id int64) *Channel {
-	if group_id < 0 {
-		group_id = -group_id
+func GetGroupChannel(groupId int64) *Channel {
+	if groupId < 0 {
+		groupId = -groupId
 	}
-	index := group_id % int64(len(group_route_channels))
-	return group_route_channels[index]
+	index := groupId % int64(len(groupRouteChannels))
+	return groupRouteChannels[index]
 }
 
-func GetRoomChannel(room_id int64) *Channel {
-	if room_id < 0 {
-		room_id = -room_id
+func GetRoomChannel(roomId int64) *Channel {
+	if roomId < 0 {
+		roomId = -roomId
 	}
-	index := room_id % int64(len(route_channels))
-	return route_channels[index]
+	index := roomId % int64(len(routeChannels))
+	return routeChannels[index]
 }
 
-func GetGroupMessageDeliver(group_id int64) *GroupMessageDeliver {
-	if group_id < 0 {
-		group_id = -group_id
+func GetGroupMessageDeliver(groupId int64) *GroupMessageDeliver {
+	if groupId < 0 {
+		groupId = -groupId
 	}
 
-	deliver_index := atomic.AddUint64(&current_deliver_index, 1)
-	index := deliver_index % uint64(len(group_message_delivers))
-	return group_message_delivers[index]
+	deliverIndex := atomic.AddUint64(&currentDeliverIndex, 1)
+	index := deliverIndex % uint64(len(groupMessageDelivers))
+	return groupMessageDelivers[index]
 }
 
-func SaveGroupMessage(appid int64, gid int64, device_id int64, msg *Message) (int64, error) {
+func SaveGroupMessage(appid int64, gid int64, deviceId int64, msg *Message) (int64, error) {
 	dc := GetGroupStorageRPCClient(gid)
 
 	gm := &GroupMessage{
-		AppID:    appid,
-		GroupID:  gid,
-		DeviceID: device_id,
+		Appid:    appid,
+		GroupId:  gid,
+		DeviceId: deviceId,
 		Cmd:      int32(msg.cmd),
 		Raw:      msg.ToData(),
 	}
@@ -220,13 +220,13 @@ func SaveGroupMessage(appid int64, gid int64, device_id int64, msg *Message) (in
 	return msgid, nil
 }
 
-func SaveMessage(appid int64, uid int64, device_id int64, m *Message) (int64, error) {
+func SaveMessage(appid int64, uid int64, deviceId int64, m *Message) (int64, error) {
 	dc := GetStorageRPCClient(uid)
 
 	pm := &PeerMessage{
-		AppID:    appid,
+		Appid:    appid,
 		Uid:      uid,
-		DeviceID: device_id,
+		DeviceId: deviceId,
 		Cmd:      int32(m.cmd),
 		Raw:      m.ToData(),
 	}
@@ -238,16 +238,16 @@ func SaveMessage(appid int64, uid int64, device_id int64, m *Message) (int64, er
 	}
 
 	msgid := resp.(int64)
-	log.Infof("save peer message:%d %d %d %d\n", appid, uid, device_id, msgid)
+	log.Infof("save peer message:%d %d %d %d\n", appid, uid, deviceId, msgid)
 	return msgid, nil
 }
 
-//超级群，离线消息推送
-func PushGroupMessage(appid int64, group_id int64, m *Message) {
+// PushGroupMessage 超级群，离线消息推送
+func PushGroupMessage(appid int64, groupId int64, m *Message) {
 	now := time.Now().UnixNano()
-	amsg := &AppMessage{appid: appid, receiver: group_id, msgid: 0, timestamp: now, msg: m}
+	amsg := &AppMessage{appid: appid, receiver: groupId, msgid: 0, timestamp: now, message: m}
 
-	group := group_manager.FindGroup(amsg.receiver)
+	group := groupManager.FindGroup(amsg.receiver)
 	if group == nil {
 		log.Warningf("can't dispatch group message, appid:%d group id:%d", amsg.appid, amsg.receiver)
 		return
@@ -267,36 +267,36 @@ func PushGroupMessage(appid int64, group_id int64, m *Message) {
 	}
 }
 
-//离线消息推送
+// PushMessage 离线消息推送
 func PushMessage(appid int64, uid int64, m *Message) {
 	PublishMessage(appid, uid, m)
 }
 
 func PublishMessage(appid int64, uid int64, m *Message) {
 	now := time.Now().UnixNano()
-	amsg := &AppMessage{appid: appid, receiver: uid, msgid: 0, timestamp: now, msg: m}
+	amsg := &AppMessage{appid: appid, receiver: uid, msgid: 0, timestamp: now, message: m}
 	channel := GetChannel(uid)
 	channel.Publish(amsg)
 }
 
-func PublishGroupMessage(appid int64, group_id int64, msg *Message) {
+func PublishGroupMessage(appid int64, groupId int64, msg *Message) {
 	now := time.Now().UnixNano()
-	amsg := &AppMessage{appid: appid, receiver: group_id, msgid: 0, timestamp: now, msg: msg}
-	channel := GetGroupChannel(group_id)
+	amsg := &AppMessage{appid: appid, receiver: groupId, msgid: 0, timestamp: now, message: msg}
+	channel := GetGroupChannel(groupId)
 	channel.PublishGroup(amsg)
 }
 
-func SendAppGroupMessage(appid int64, group_id int64, msg *Message) {
+func SendAppGroupMessage(appid int64, groupId int64, msg *Message) {
 	now := time.Now().UnixNano()
-	amsg := &AppMessage{appid: appid, receiver: group_id, msgid: 0, timestamp: now, msg: msg}
-	channel := GetGroupChannel(group_id)
+	amsg := &AppMessage{appid: appid, receiver: groupId, msgid: 0, timestamp: now, message: msg}
+	channel := GetGroupChannel(groupId)
 	channel.PublishGroup(amsg)
 	DispatchGroupMessage(amsg)
 }
 
 func SendAppMessage(appid int64, uid int64, msg *Message) {
 	now := time.Now().UnixNano()
-	amsg := &AppMessage{appid: appid, receiver: uid, msgid: 0, timestamp: now, msg: msg}
+	amsg := &AppMessage{appid: appid, receiver: uid, msgid: 0, timestamp: now, message: msg}
 	channel := GetChannel(uid)
 	channel.Publish(amsg)
 	DispatchAppMessage(amsg)
@@ -335,58 +335,58 @@ func FilterDirtyWord(msg *IMMessage) {
 func DispatchAppMessage(amsg *AppMessage) {
 	now := time.Now().UnixNano()
 	d := now - amsg.timestamp
-	log.Infof("dispatch app message:%s %d %d", Command(amsg.msg.cmd), amsg.msg.flag, d)
+	log.Infof("dispatch app message:%s %d %d", Command(amsg.message.cmd), amsg.message.flag, d)
 	if d > int64(time.Second) {
 		log.Warning("dispatch app message slow...")
 	}
 
-	route := app_route.FindRoute(amsg.appid)
+	route := appRoute.FindRoute(amsg.appid)
 	if route == nil {
-		log.Warningf("can't dispatch app message, appid:%d uid:%d cmd:%s", amsg.appid, amsg.receiver, Command(amsg.msg.cmd))
+		log.Warningf("can't dispatch app message, appid:%d uid:%d cmd:%s", amsg.appid, amsg.receiver, Command(amsg.message.cmd))
 		return
 	}
 	clients := route.FindClientSet(amsg.receiver)
 	if len(clients) == 0 {
-		log.Infof("can't dispatch app message, appid:%d uid:%d cmd:%s", amsg.appid, amsg.receiver, Command(amsg.msg.cmd))
+		log.Infof("can't dispatch app message, appid:%d uid:%d cmd:%s", amsg.appid, amsg.receiver, Command(amsg.message.cmd))
 		return
 	}
 	for c, _ := range clients {
-		c.EnqueueNonBlockMessage(amsg.msg)
+		c.EnqueueNonBlockMessage(amsg.message)
 	}
 }
 
 func DispatchRoomMessage(amsg *AppMessage) {
-	log.Info("dispatch room message", Command(amsg.msg.cmd))
+	log.Info("dispatch room message", Command(amsg.message.cmd))
 	room_id := amsg.receiver
-	route := app_route.FindOrAddRoute(amsg.appid)
+	route := appRoute.FindOrAddRoute(amsg.appid)
 	clients := route.FindRoomClientSet(room_id)
 
 	if len(clients) == 0 {
-		log.Infof("can't dispatch room message, appid:%d room id:%d cmd:%s", amsg.appid, amsg.receiver, Command(amsg.msg.cmd))
+		log.Infof("can't dispatch room message, appid:%d room id:%d cmd:%s", amsg.appid, amsg.receiver, Command(amsg.message.cmd))
 		return
 	}
 	for c, _ := range clients {
-		c.EnqueueNonBlockMessage(amsg.msg)
+		c.EnqueueNonBlockMessage(amsg.message)
 	}
 }
 
 func DispatchGroupMessage(amsg *AppMessage) {
 	now := time.Now().UnixNano()
 	d := now - amsg.timestamp
-	log.Infof("dispatch group message:%s %d %d", Command(amsg.msg.cmd), amsg.msg.flag, d)
+	log.Infof("dispatch group message:%s %d %d", Command(amsg.message.cmd), amsg.message.flag, d)
 	if d > int64(time.Second) {
 		log.Warning("dispatch group message slow...")
 	}
 
-	group := group_manager.FindGroup(amsg.receiver)
+	group := groupManager.FindGroup(amsg.receiver)
 	if group == nil {
 		log.Warningf("can't dispatch group message, appid:%d group id:%d", amsg.appid, amsg.receiver)
 		return
 	}
 
-	route := app_route.FindRoute(amsg.appid)
+	route := appRoute.FindRoute(amsg.appid)
 	if route == nil {
-		log.Warningf("can't dispatch app message, appid:%d uid:%d cmd:%s", amsg.appid, amsg.receiver, Command(amsg.msg.cmd))
+		log.Warningf("can't dispatch app message, appid:%d uid:%d cmd:%s", amsg.appid, amsg.receiver, Command(amsg.message.cmd))
 		return
 	}
 
@@ -398,7 +398,7 @@ func DispatchGroupMessage(amsg *AppMessage) {
 		}
 
 		for c, _ := range clients {
-			c.EnqueueNonBlockMessage(amsg.msg)
+			c.EnqueueNonBlockMessage(amsg.message)
 		}
 	}
 }
@@ -442,19 +442,19 @@ func StartHttpServer(addr string) {
 func SyncKeyService() {
 	for {
 		select {
-		case s := <-sync_c:
-			origin := GetSyncKey(s.AppID, s.Uid)
-			if s.LastMsgID > origin {
-				log.Infof("save sync key:%d %d %d", s.AppID, s.Uid, s.LastMsgID)
-				SaveSyncKey(s.AppID, s.Uid, s.LastMsgID)
+		case s := <-syncC:
+			origin := GetSyncKey(s.Appid, s.Uid)
+			if s.LastMsgid > origin {
+				log.Infof("save sync key:%d %d %d", s.Appid, s.Uid, s.LastMsgid)
+				SaveSyncKey(s.Appid, s.Uid, s.LastMsgid)
 			}
 			break
-		case s := <-group_sync_c:
-			origin := GetGroupSyncKey(s.AppID, s.Uid, s.GroupID)
-			if s.LastMsgID > origin {
+		case s := <-groupSyncC:
+			origin := GetGroupSyncKey(s.Appid, s.Uid, s.GroupId)
+			if s.LastMsgid > origin {
 				log.Infof("save group sync key:%d %d %d %d",
-					s.AppID, s.Uid, s.GroupID, s.LastMsgID)
-				SaveGroupSyncKey(s.AppID, s.Uid, s.GroupID, s.LastMsgID)
+					s.Appid, s.Uid, s.GroupId, s.LastMsgid)
+				SaveGroupSyncKey(s.Appid, s.Uid, s.GroupId, s.LastMsgid)
 			}
 			break
 		}
@@ -462,7 +462,7 @@ func SyncKeyService() {
 }
 
 func main() {
-	fmt.Printf("Version:     %s\nBuilt:       %s\nGo version:  %s\nGit branch:  %s\nGit commit:  %s\n", VERSION, BUILD_TIME, GO_VERSION, GIT_BRANCH, GIT_COMMIT_ID)
+	fmt.Printf("Version:     %s\nBuilt:       %s\nGo version:  %s\nGit branch:  %s\nGit commit:  %s\n", Version, BuildTime, GoVersion, GitBranch, GitCommitId)
 	rand.Seed(time.Now().UnixNano())
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	flag.Parse()
@@ -471,28 +471,28 @@ func main() {
 		return
 	}
 
-	config = read_cfg(flag.Args()[0])
+	config = readCfg(flag.Args()[0])
 	log.Infof("port:%d\n", config.port)
 
 	log.Infof("redis address:%s password:%s db:%d\n",
-		config.redis_address, config.redis_password, config.redis_db)
+		config.redisAddress, config.redisPassword, config.redisDb)
 
-	log.Info("storage addresses:", config.storage_rpc_addrs)
-	log.Info("route addressed:", config.route_addrs)
-	log.Info("group route addressed:", config.group_route_addrs)
-	log.Info("kefu appid:", config.kefu_appid)
-	log.Info("pending root:", config.pending_root)
+	log.Info("storage addresses:", config.storageRpcAddrs)
+	log.Info("route addressed:", config.routeAddrs)
+	log.Info("group route addressed:", config.groupRouteAddrs)
+	log.Info("kefu appid:", config.kefuAppid)
+	log.Info("pending root:", config.pendingRoot)
 
 	log.Infof("socket io address:%s tls_address:%s cert file:%s key file:%s",
-		config.socket_io_address, config.tls_address, config.cert_file, config.key_file)
-	log.Info("group deliver count:", config.group_deliver_count)
-	log.Info("sync self:", config.sync_self)
+		config.socketIoAddress, config.tlsAddress, config.certFile, config.keyFile)
+	log.Info("group deliver count:", config.groupDeliverCount)
+	log.Info("sync self:", config.syncSelf)
 
-	redis_pool = NewRedisPool(config.redis_address, config.redis_password,
-		config.redis_db)
+	redisPool = NewRedisPool(config.redisAddress, config.redisPassword,
+		config.redisDb)
 
-	rpc_clients = make([]*gorpc.DispatcherClient, 0)
-	for _, addr := range config.storage_rpc_addrs {
+	rpcClients = make([]*gorpc.DispatcherClient, 0)
+	for _, addr := range config.storageRpcAddrs {
 		c := &gorpc.Client{
 			Conns: 4,
 			Addr:  addr,
@@ -508,12 +508,12 @@ func main() {
 
 		dc := dispatcher.NewFuncClient(c)
 
-		rpc_clients = append(rpc_clients, dc)
+		rpcClients = append(rpcClients, dc)
 	}
 
-	if len(config.group_storage_rpc_addrs) > 0 {
-		group_rpc_clients = make([]*gorpc.DispatcherClient, 0)
-		for _, addr := range config.group_storage_rpc_addrs {
+	if len(config.groupStorageRpcAddrs) > 0 {
+		groupRpcClients = make([]*gorpc.DispatcherClient, 0)
+		for _, addr := range config.groupStorageRpcAddrs {
 			c := &gorpc.Client{
 				Conns: 4,
 				Addr:  addr,
@@ -528,58 +528,58 @@ func main() {
 
 			dc := dispatcher.NewFuncClient(c)
 
-			group_rpc_clients = append(group_rpc_clients, dc)
+			groupRpcClients = append(groupRpcClients, dc)
 		}
 	} else {
-		group_rpc_clients = rpc_clients
+		groupRpcClients = rpcClients
 	}
 
-	route_channels = make([]*Channel, 0)
-	for _, addr := range config.route_addrs {
+	routeChannels = make([]*Channel, 0)
+	for _, addr := range config.routeAddrs {
 		channel := NewChannel(addr, DispatchAppMessage, DispatchGroupMessage, DispatchRoomMessage)
 		channel.Start()
-		route_channels = append(route_channels, channel)
+		routeChannels = append(routeChannels, channel)
 	}
 
-	if len(config.group_route_addrs) > 0 {
-		group_route_channels = make([]*Channel, 0)
-		for _, addr := range config.group_route_addrs {
+	if len(config.groupRouteAddrs) > 0 {
+		groupRouteChannels = make([]*Channel, 0)
+		for _, addr := range config.groupRouteAddrs {
 			channel := NewChannel(addr, DispatchAppMessage, DispatchGroupMessage, DispatchRoomMessage)
 			channel.Start()
-			group_route_channels = append(group_route_channels, channel)
+			groupRouteChannels = append(groupRouteChannels, channel)
 		}
 	} else {
-		group_route_channels = route_channels
+		groupRouteChannels = routeChannels
 	}
 
-	if len(config.word_file) > 0 {
+	if len(config.wordFile) > 0 {
 		filter = sensitive.New()
-		filter.LoadWordDict(config.word_file)
+		filter.LoadWordDict(config.wordFile)
 	}
 
-	group_manager = NewGroupManager()
-	group_manager.Start()
+	groupManager = NewGroupManager()
+	groupManager.Start()
 
-	group_message_delivers = make([]*GroupMessageDeliver, config.group_deliver_count)
-	for i := 0; i < config.group_deliver_count; i++ {
+	groupMessageDelivers = make([]*GroupMessageDeliver, config.groupDeliverCount)
+	for i := 0; i < config.groupDeliverCount; i++ {
 		q := fmt.Sprintf("q%d", i)
-		r := path.Join(config.pending_root, q)
+		r := path.Join(config.pendingRoot, q)
 		deliver := NewGroupMessageDeliver(r)
 		deliver.Start()
-		group_message_delivers[i] = deliver
+		groupMessageDelivers[i] = deliver
 	}
 
 	go ListenRedis()
 	go SyncKeyService()
 
-	go StartHttpServer(config.http_listen_address)
-	StartRPCServer(config.rpc_listen_address)
+	go StartHttpServer(config.httpListenAddress)
+	StartRPCServer(config.rpcListenAddress)
 
-	go StartSocketIO(config.socket_io_address, config.tls_address,
-		config.cert_file, config.key_file)
+	go StartSocketIO(config.socketIoAddress, config.tlsAddress,
+		config.certFile, config.keyFile)
 
-	if config.ssl_port > 0 && len(config.cert_file) > 0 && len(config.key_file) > 0 {
-		go ListenSSL(config.ssl_port, config.cert_file, config.key_file)
+	if config.sslPort > 0 && len(config.certFile) > 0 && len(config.keyFile) > 0 {
+		go ListenSSL(config.sslPort, config.certFile, config.keyFile)
 	}
 	ListenClient()
 	log.Infof("exit")

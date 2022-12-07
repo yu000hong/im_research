@@ -4,87 +4,74 @@ import "bytes"
 import "encoding/binary"
 import log "github.com/golang/glog"
 
-//存储服务器命令消息 deprecated
-const MSG_SAVE_AND_ENQUEUE = 200
-const MSG_DEQUEUE = 201
-const MSG_LOAD_OFFLINE = 202
-const MSG_LOAD_GROUP_OFFLINE = 203
-const MSG_RESULT = 204
-const MSG_LOAD_LATEST = 205
-const MSG_SAVE_AND_ENQUEUE_GROUP = 206
-const MSG_DEQUEUE_GROUP = 207
-const MSG_LOAD_HISTORY = 208
-const MSG_GET_OFFLINE_COUNT = 211
-const MSG_GET_GROUP_OFFLINE_COUNT = 212
+const MsgSaveAndEnqueue = 200
+const MsgDequeue = 201
+const MsgLoadOffline = 202
+const MsgLoadGroupOffline = 203
+const MsgResult = 204
+const MsgLoadLatest = 205
+const MsgSaveAndEnqueueGroup = 206
+const MsgDequeueGroup = 207
+const MsgLoadHistory = 208
+const MsgGetOfflineCount = 211
+const MsgGetGroupOfflineCount = 212
 
-//主从同步消息
-const MSG_STORAGE_SYNC_BEGIN = 220
-const MSG_STORAGE_SYNC_MESSAGE = 221
-const MSG_STORAGE_SYNC_MESSAGE_BATCH = 222
+const MsgStorageSyncBegin = 220 //主从同步消息
+const MsgStorageSyncMessage = 221
+const MsgStorageSyncMessageBatch = 222
 
-//内部文件存储使用
-
-//个人消息队列 代替MSG_OFFLINE
-const MSG_OFFLINE_V2 = 250
-
-//im实例使用
-const MSG_PENDING_GROUP_MESSAGE = 251
-
-//超级群消息队列
-const MSG_GROUP_IM_LIST = 252
-
-//deprecated
-const MSG_GROUP_ACK_IN = 253
-
-//deprecated 兼容性
-const MSG_OFFLINE = 254
-
-//deprecated
-const MSG_ACK_IN = 255
+const MsgOfflineV2 = 250
+const MsgPendingGroupMessage = 251
+const MsgGroupImList = 252 //超级群消息队列
+const MsgGroupAckIn = 253
+const MsgOffline = 254
+const MsgAckIn = 255
 
 func init() {
-	message_creators[MSG_SAVE_AND_ENQUEUE] = func() IMessage { return new(SAEMessage) }
-	message_creators[MSG_DEQUEUE] = func() IMessage { return new(DQMessage) }
-	message_creators[MSG_LOAD_OFFLINE] = func() IMessage { return new(LoadOffline) }
-	message_creators[MSG_LOAD_GROUP_OFFLINE] = func() IMessage { return new(LoadGroupOffline) }
-	message_creators[MSG_RESULT] = func() IMessage { return new(MessageResult) }
-	message_creators[MSG_LOAD_LATEST] = func() IMessage { return new(LoadLatest) }
-	message_creators[MSG_LOAD_HISTORY] = func() IMessage { return new(LoadHistory) }
-	message_creators[MSG_SAVE_AND_ENQUEUE_GROUP] = func() IMessage { return new(SAEMessage) }
-	message_creators[MSG_DEQUEUE_GROUP] = func() IMessage { return new(DQGroupMessage) }
-	message_creators[MSG_GET_OFFLINE_COUNT] = func() IMessage { return new(LoadOffline) }
-	message_creators[MSG_GET_GROUP_OFFLINE_COUNT] = func() IMessage { return new(LoadGroupOffline) }
+	messageCreators[MsgSaveAndEnqueue] = func() IMessage { return new(SAEMessage) }
+	messageCreators[MsgDequeue] = func() IMessage { return new(DQMessage) }
+	messageCreators[MsgLoadOffline] = func() IMessage { return new(LoadOffline) }
+	messageCreators[MsgLoadGroupOffline] = func() IMessage { return new(LoadGroupOffline) }
+	messageCreators[MsgResult] = func() IMessage { return new(MessageResult) }
+	messageCreators[MsgLoadLatest] = func() IMessage { return new(LoadLatest) }
+	messageCreators[MsgLoadHistory] = func() IMessage { return new(LoadHistory) }
+	messageCreators[MsgSaveAndEnqueueGroup] = func() IMessage { return new(SAEMessage) }
+	messageCreators[MsgDequeueGroup] = func() IMessage { return new(DQGroupMessage) }
+	messageCreators[MsgGetOfflineCount] = func() IMessage { return new(LoadOffline) }
+	messageCreators[MsgGetGroupOfflineCount] = func() IMessage { return new(LoadGroupOffline) }
 
-	message_creators[MSG_OFFLINE_V2] = func() IMessage { return new(OfflineMessage2) }
-	message_creators[MSG_PENDING_GROUP_MESSAGE] = func() IMessage { return new(PendingGroupMessage) }
-	message_creators[MSG_GROUP_IM_LIST] = func() IMessage { return new(GroupOfflineMessage) }
-	message_creators[MSG_GROUP_ACK_IN] = func() IMessage { return new(GroupOfflineMessage) }
+	messageCreators[MsgOfflineV2] = func() IMessage { return new(OfflineMessage2) }
+	messageCreators[MsgPendingGroupMessage] = func() IMessage { return new(PendingGroupMessage) }
+	messageCreators[MsgGroupImList] = func() IMessage { return new(GroupOfflineMessage) }
+	messageCreators[MsgGroupAckIn] = func() IMessage { return new(GroupOfflineMessage) }
 
-	message_creators[MSG_OFFLINE] = func() IMessage { return new(OfflineMessage) }
-	message_creators[MSG_ACK_IN] = func() IMessage { return new(MessageACKIn) }
+	messageCreators[MsgOffline] = func() IMessage { return new(OfflineMessage) }
+	messageCreators[MsgAckIn] = func() IMessage { return new(MessageACKIn) }
 
-	message_creators[MSG_STORAGE_SYNC_BEGIN] = func() IMessage { return new(SyncCursor) }
-	message_creators[MSG_STORAGE_SYNC_MESSAGE] = func() IMessage { return new(EMessage) }
-	message_creators[MSG_STORAGE_SYNC_MESSAGE_BATCH] = func() IMessage { return new(MessageBatch) }
+	messageCreators[MsgStorageSyncBegin] = func() IMessage { return new(SyncCursor) }
+	messageCreators[MsgStorageSyncMessage] = func() IMessage { return new(EMessage) }
+	messageCreators[MsgStorageSyncMessageBatch] = func() IMessage { return new(MessageBatch) }
 
-	message_descriptions[MSG_SAVE_AND_ENQUEUE] = "MSG_SAVE_AND_ENQUEUE"
-	message_descriptions[MSG_DEQUEUE] = "MSG_DEQUEUE"
-	message_descriptions[MSG_LOAD_OFFLINE] = "MSG_LOAD_OFFLINE"
-	message_descriptions[MSG_RESULT] = "MSG_RESULT"
-	message_descriptions[MSG_LOAD_LATEST] = "MSG_LOAD_LATEST"
-	message_descriptions[MSG_LOAD_HISTORY] = "MSG_LOAD_HISTORY"
-	message_descriptions[MSG_SAVE_AND_ENQUEUE_GROUP] = "MSG_SAVE_AND_ENQUEUE_GROUP"
-	message_descriptions[MSG_DEQUEUE_GROUP] = "MSG_DEQUEUE_GROUP"
+	messageDescriptions[MsgSaveAndEnqueue] = "MSG_SAVE_AND_ENQUEUE"
+	messageDescriptions[MsgDequeue] = "MSG_DEQUEUE"
+	messageDescriptions[MsgLoadOffline] = "MSG_LOAD_OFFLINE"
+	messageDescriptions[MsgResult] = "MSG_RESULT"
+	messageDescriptions[MsgLoadLatest] = "MSG_LOAD_LATEST"
+	messageDescriptions[MsgLoadHistory] = "MSG_LOAD_HISTORY"
+	messageDescriptions[MsgSaveAndEnqueueGroup] = "MSG_SAVE_AND_ENQUEUE_GROUP"
+	messageDescriptions[MsgDequeueGroup] = "MSG_DEQUEUE_GROUP"
 
-	message_descriptions[MSG_STORAGE_SYNC_BEGIN] = "MSG_STORAGE_SYNC_BEGIN"
-	message_descriptions[MSG_STORAGE_SYNC_MESSAGE] = "MSG_STORAGE_SYNC_MESSAGE"
-	message_descriptions[MSG_STORAGE_SYNC_MESSAGE_BATCH] = "MSG_STORAGE_SYNC_MESSAGE_BATCH"
+	messageDescriptions[MsgStorageSyncBegin] = "MSG_STORAGE_SYNC_BEGIN"
+	messageDescriptions[MsgStorageSyncMessage] = "MSG_STORAGE_SYNC_MESSAGE"
+	messageDescriptions[MsgStorageSyncMessageBatch] = "MSG_STORAGE_SYNC_MESSAGE_BATCH"
 
-	message_descriptions[MSG_OFFLINE_V2] = "MSG_OFFLINE_V2"
-	message_descriptions[MSG_PENDING_GROUP_MESSAGE] = "MSG_PENDING_GROUP_MESSAGE"
-	message_descriptions[MSG_GROUP_IM_LIST] = "MSG_GROUP_IM_LIST"
+	messageDescriptions[MsgOfflineV2] = "MSG_OFFLINE_V2"
+	messageDescriptions[MsgPendingGroupMessage] = "MSG_PENDING_GROUP_MESSAGE"
+	messageDescriptions[MsgGroupImList] = "MSG_GROUP_IM_LIST"
 
 }
+
+//region SyncCursor
 
 type SyncCursor struct {
 	msgid int64
@@ -92,7 +79,7 @@ type SyncCursor struct {
 
 func (cursor *SyncCursor) ToData() []byte {
 	buffer := new(bytes.Buffer)
-	binary.Write(buffer, binary.BigEndian, cursor.msgid)
+	_ = binary.Write(buffer, binary.BigEndian, cursor.msgid)
 	return buffer.Bytes()
 }
 
@@ -101,14 +88,18 @@ func (cursor *SyncCursor) FromData(buff []byte) bool {
 		return false
 	}
 	buffer := bytes.NewBuffer(buff)
-	binary.Read(buffer, binary.BigEndian, &cursor.msgid)
+	_ = binary.Read(buffer, binary.BigEndian, &cursor.msgid)
 	return true
 }
 
+//endregion
+
+//region EMessage
+
 type EMessage struct {
-	msgid     int64
-	device_id int64
-	msg       *Message
+	msgid    int64
+	deviceId int64
+	msg      *Message
 }
 
 func (emsg *EMessage) ToData() []byte {
@@ -117,17 +108,15 @@ func (emsg *EMessage) ToData() []byte {
 	}
 
 	buffer := new(bytes.Buffer)
-	binary.Write(buffer, binary.BigEndian, emsg.msgid)
-	binary.Write(buffer, binary.BigEndian, emsg.device_id)
+	_ = binary.Write(buffer, binary.BigEndian, emsg.msgid)
+	_ = binary.Write(buffer, binary.BigEndian, emsg.deviceId)
 	mbuffer := new(bytes.Buffer)
 	WriteMessage(mbuffer, emsg.msg)
-	msg_buf := mbuffer.Bytes()
-	var l int16 = int16(len(msg_buf))
-	binary.Write(buffer, binary.BigEndian, l)
-	buffer.Write(msg_buf)
-	buf := buffer.Bytes()
-	return buf
-
+	msgBuf := mbuffer.Bytes()
+	var l = int16(len(msgBuf))
+	_ = binary.Write(buffer, binary.BigEndian, l)
+	buffer.Write(msgBuf)
+	return buffer.Bytes()
 }
 
 func (emsg *EMessage) FromData(buff []byte) bool {
@@ -136,46 +125,46 @@ func (emsg *EMessage) FromData(buff []byte) bool {
 	}
 
 	buffer := bytes.NewBuffer(buff)
-	binary.Read(buffer, binary.BigEndian, &emsg.msgid)
-	binary.Read(buffer, binary.BigEndian, &emsg.device_id)
+	_ = binary.Read(buffer, binary.BigEndian, &emsg.msgid)
+	_ = binary.Read(buffer, binary.BigEndian, &emsg.deviceId)
 	var l int16
-	binary.Read(buffer, binary.BigEndian, &l)
+	_ = binary.Read(buffer, binary.BigEndian, &l)
 	if int(l) > buffer.Len() {
 		return false
 	}
 
-	msg_buf := make([]byte, l)
-	buffer.Read(msg_buf)
-	mbuffer := bytes.NewBuffer(msg_buf)
-	//recusive
+	msgBuf := make([]byte, l)
+	_, _ = buffer.Read(msgBuf)
+	mbuffer := bytes.NewBuffer(msgBuf)
+	//recursive
 	msg := ReceiveMessage(mbuffer)
 	if msg == nil {
 		return false
 	}
 	emsg.msg = msg
-
 	return true
 }
 
+//endregion
+
 type MessageBatch struct {
-	first_id int64
-	last_id  int64
-	msgs     []*Message
+	firstId  int64
+	lastId   int64
+	messages []*Message
 }
 
 func (batch *MessageBatch) ToData() []byte {
 	buffer := new(bytes.Buffer)
-	binary.Write(buffer, binary.BigEndian, batch.first_id)
-	binary.Write(buffer, binary.BigEndian, batch.last_id)
-	count := int32(len(batch.msgs))
-	binary.Write(buffer, binary.BigEndian, count)
+	_ = binary.Write(buffer, binary.BigEndian, batch.firstId)
+	_ = binary.Write(buffer, binary.BigEndian, batch.lastId)
+	count := int32(len(batch.messages))
+	_ = binary.Write(buffer, binary.BigEndian, count)
 
-	for _, m := range batch.msgs {
-		SendMessage(buffer, m)
+	for _, m := range batch.messages {
+		_ = SendMessage(buffer, m) //TODO this should be WriteMessage()
 	}
 
-	buf := buffer.Bytes()
-	return buf
+	return buffer.Bytes()
 }
 
 func (batch *MessageBatch) FromData(buff []byte) bool {
@@ -184,19 +173,19 @@ func (batch *MessageBatch) FromData(buff []byte) bool {
 	}
 
 	buffer := bytes.NewBuffer(buff)
-	binary.Read(buffer, binary.BigEndian, &batch.first_id)
-	binary.Read(buffer, binary.BigEndian, &batch.last_id)
+	_ = binary.Read(buffer, binary.BigEndian, &batch.firstId)
+	_ = binary.Read(buffer, binary.BigEndian, &batch.lastId)
 
 	var count int32
-	binary.Read(buffer, binary.BigEndian, &count)
+	_ = binary.Read(buffer, binary.BigEndian, &count)
 
-	batch.msgs = make([]*Message, 0, count)
+	batch.messages = make([]*Message, 0, count)
 	for i := 0; i < int(count); i++ {
 		msg := ReceiveMessage(buffer)
 		if msg == nil {
 			return false
 		}
-		batch.msgs = append(batch.msgs, msg)
+		batch.messages = append(batch.messages, msg)
 	}
 
 	return true
@@ -411,7 +400,7 @@ func (sae *SAEMessage) ToData() []byte {
 		return nil
 	}
 
-	if sae.msg.cmd == MSG_SAVE_AND_ENQUEUE {
+	if sae.msg.cmd == MsgSaveAndEnqueue {
 		log.Warning("recusive sae message")
 		return nil
 	}

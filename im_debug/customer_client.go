@@ -14,9 +14,9 @@ func NewCustomerClient(conn *Connection) *CustomerClient {
 
 func (client *CustomerClient) HandleMessage(msg *Message) {
 	switch msg.cmd {
-	case MSG_CUSTOMER:
+	case MsgCustomer:
 		client.HandleCustomerMessage(msg)
-	case MSG_CUSTOMER_SUPPORT:
+	case MsgCustomerSupport:
 		client.HandleCustomerSupportMessage(msg)
 	}
 }
@@ -24,49 +24,49 @@ func (client *CustomerClient) HandleMessage(msg *Message) {
 //客服->顾客
 func (client *CustomerClient) HandleCustomerSupportMessage(msg *Message) {
 	cm := msg.body.(*CustomerMessage)
-	if client.appid != config.kefu_appid {
+	if client.appid != config.kefuAppid {
 		log.Warningf("client appid:%d kefu appid:%d",
-			client.appid, config.kefu_appid)
+			client.appid, config.kefuAppid)
 		return
 	}
-	if client.uid != cm.seller_id {
-		log.Warningf("uid:%d seller id:%d", client.uid, cm.seller_id)
+	if client.uid != cm.sellerId {
+		log.Warningf("uid:%d seller id:%d", client.uid, cm.sellerId)
 		return
 	}
 
 	cm.timestamp = int32(time.Now().Unix())
 
-	if (msg.flag & MESSAGE_FLAG_UNPERSISTENT) > 0 {
+	if (msg.flag & MessageFlagUnpersistent) > 0 {
 		log.Info("customer support message unpersistent")
-		SendAppMessage(cm.customer_appid, cm.customer_id, msg)
-		ack := &Message{cmd: MSG_ACK, body: &MessageACK{int32(msg.seq)}}
+		SendAppMessage(cm.customerAppid, cm.customerId, msg)
+		ack := &Message{cmd: MsgAck, body: &MessageACK{int32(msg.seq)}}
 		client.EnqueueMessage(ack)
 		return
 	}
 
-	msgid, err := SaveMessage(cm.customer_appid, cm.customer_id, client.device_ID, msg)
+	msgid, err := SaveMessage(cm.customerAppid, cm.customerId, client.deviceId, msg)
 	if err != nil {
 		log.Warning("save customer support message err:", err)
 		return
 	}
 
-	msgid2, err := SaveMessage(client.appid, cm.seller_id, client.device_ID, msg)
+	msgid2, err := SaveMessage(client.appid, cm.sellerId, client.deviceId, msg)
 	if err != nil {
 		log.Warning("save customer support message err:", err)
 		return
 	}
 
-	PushMessage(cm.customer_appid, cm.customer_id, msg)
+	PushMessage(cm.customerAppid, cm.customerId, msg)
 
 	//发送同步的通知消息
-	notify := &Message{cmd: MSG_SYNC_NOTIFY, body: &SyncKey{msgid}}
-	SendAppMessage(cm.customer_appid, cm.customer_id, notify)
+	notify := &Message{cmd: MsgSyncNotify, body: &SyncKey{msgid}}
+	SendAppMessage(cm.customerAppid, cm.customerId, notify)
 
 	//发送给自己的其它登录点
-	notify = &Message{cmd: MSG_SYNC_NOTIFY, body: &SyncKey{msgid2}}
+	notify = &Message{cmd: MsgSyncNotify, body: &SyncKey{msgid2}}
 	client.SendMessage(client.uid, notify)
 
-	ack := &Message{cmd: MSG_ACK, body: &MessageACK{int32(msg.seq)}}
+	ack := &Message{cmd: MsgAck, body: &MessageACK{int32(msg.seq)}}
 	client.EnqueueMessage(ack)
 }
 
@@ -76,53 +76,53 @@ func (client *CustomerClient) HandleCustomerMessage(msg *Message) {
 	cm.timestamp = int32(time.Now().Unix())
 
 	log.Infof("customer message customer appid:%d customer id:%d store id:%d seller id:%d",
-		cm.customer_appid, cm.customer_id, cm.store_id, cm.seller_id)
-	if cm.customer_appid != client.appid {
+		cm.customerAppid, cm.customerId, cm.storeId, cm.sellerId)
+	if cm.customerAppid != client.appid {
 		log.Warningf("message appid:%d client appid:%d",
-			cm.customer_appid, client.appid)
+			cm.customerAppid, client.appid)
 		return
 	}
-	if cm.customer_id != client.uid {
+	if cm.customerId != client.uid {
 		log.Warningf("message customer id:%d client uid:%d",
-			cm.customer_id, client.uid)
+			cm.customerId, client.uid)
 		return
 	}
 
-	if cm.seller_id == 0 {
+	if cm.sellerId == 0 {
 		log.Warningf("message seller id:0")
 		return
 	}
 
-	if (msg.flag & MESSAGE_FLAG_UNPERSISTENT) > 0 {
+	if (msg.flag & MessageFlagUnpersistent) > 0 {
 		log.Info("customer message unpersistent")
-		SendAppMessage(config.kefu_appid, cm.seller_id, msg)
-		ack := &Message{cmd: MSG_ACK, body: &MessageACK{int32(msg.seq)}}
+		SendAppMessage(config.kefuAppid, cm.sellerId, msg)
+		ack := &Message{cmd: MsgAck, body: &MessageACK{int32(msg.seq)}}
 		client.EnqueueMessage(ack)
 		return
 	}
 
-	msgid, err := SaveMessage(config.kefu_appid, cm.seller_id, client.device_ID, msg)
+	msgid, err := SaveMessage(config.kefuAppid, cm.sellerId, client.deviceId, msg)
 	if err != nil {
 		log.Warning("save customer message err:", err)
 		return
 	}
 
-	msgid2, err := SaveMessage(cm.customer_appid, cm.customer_id, client.device_ID, msg)
+	msgid2, err := SaveMessage(cm.customerAppid, cm.customerId, client.deviceId, msg)
 	if err != nil {
 		log.Warning("save customer message err:", err)
 		return
 	}
 
-	PushMessage(config.kefu_appid, cm.seller_id, msg)
+	PushMessage(config.kefuAppid, cm.sellerId, msg)
 
 	//发送同步的通知消息
-	notify := &Message{cmd: MSG_SYNC_NOTIFY, body: &SyncKey{msgid}}
-	SendAppMessage(config.kefu_appid, cm.seller_id, notify)
+	notify := &Message{cmd: MsgSyncNotify, body: &SyncKey{msgid}}
+	SendAppMessage(config.kefuAppid, cm.sellerId, notify)
 
 	//发送给自己的其它登录点
-	notify = &Message{cmd: MSG_SYNC_NOTIFY, body: &SyncKey{msgid2}}
+	notify = &Message{cmd: MsgSyncNotify, body: &SyncKey{msgid2}}
 	client.SendMessage(client.uid, notify)
 
-	ack := &Message{cmd: MSG_ACK, body: &MessageACK{int32(msg.seq)}}
+	ack := &Message{cmd: MsgAck, body: &MessageACK{int32(msg.seq)}}
 	client.EnqueueMessage(ack)
 }

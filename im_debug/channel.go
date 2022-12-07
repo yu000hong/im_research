@@ -6,14 +6,14 @@ import "sync"
 import log "github.com/golang/glog"
 
 type Subscriber struct {
-	uids     map[int64]int
-	room_ids map[int64]int
+	uids    map[int64]int
+	roomIds map[int64]int
 }
 
 func NewSubscriber() *Subscriber {
 	s := new(Subscriber)
 	s.uids = make(map[int64]int)
-	s.room_ids = make(map[int64]int)
+	s.roomIds = make(map[int64]int)
 	return s
 }
 
@@ -24,9 +24,9 @@ type Channel struct {
 	mutex       sync.Mutex
 	subscribers map[int64]*Subscriber
 
-	dispatch       func(*AppMessage)
-	dispatch_group func(*AppMessage)
-	dispatch_room  func(*AppMessage)
+	dispatch      func(*AppMessage)
+	dispatchGroup func(*AppMessage)
+	dispatchRoom  func(*AppMessage)
 }
 
 func NewChannel(addr string, f func(*AppMessage),
@@ -34,14 +34,14 @@ func NewChannel(addr string, f func(*AppMessage),
 	channel := new(Channel)
 	channel.subscribers = make(map[int64]*Subscriber)
 	channel.dispatch = f
-	channel.dispatch_group = f2
-	channel.dispatch_room = f3
+	channel.dispatchGroup = f2
+	channel.dispatchRoom = f3
 	channel.addr = addr
 	channel.wt = make(chan *Message, 10)
 	return channel
 }
 
-//返回添加前的计数
+// AddSubscribe 返回添加前的计数
 func (channel *Channel) AddSubscribe(appid, uid int64, online bool) (int, int) {
 	channel.mutex.Lock()
 	defer channel.mutex.Unlock()
@@ -65,7 +65,7 @@ func (channel *Channel) AddSubscribe(appid, uid int64, online bool) (int, int) {
 	return count & 0xffff, count >> 16 & 0xffff
 }
 
-//返回删除前的计数
+// RemoveSubscribe 返回删除前的计数
 func (channel *Channel) RemoveSubscribe(appid, uid int64, online bool) (int, int) {
 	channel.mutex.Lock()
 	defer channel.mutex.Unlock()
@@ -96,7 +96,7 @@ func (channel *Channel) RemoveSubscribe(appid, uid int64, online bool) (int, int
 	return count & 0xffff, count >> 16 & 0xffff
 }
 
-func (channel *Channel) GetAllSubscriber() map[int64]*Subscriber {
+func (channel *Channel) GetAllSubscribers() map[int64]*Subscriber {
 	channel.mutex.Lock()
 	defer channel.mutex.Unlock()
 
@@ -112,10 +112,10 @@ func (channel *Channel) GetAllSubscriber() map[int64]*Subscriber {
 	return subs
 }
 
-//online表示用户不再接受推送通知(apns, gcm)
+// Subscribe online表示用户不再接受推送通知(apns, gcm)
 func (channel *Channel) Subscribe(appid int64, uid int64, online bool) {
-	count, online_count := channel.AddSubscribe(appid, uid, online)
-	log.Info("sub count:", count, online_count)
+	count, onlineCount := channel.AddSubscribe(appid, uid, online)
+	log.Info("sub count:", count, onlineCount)
 	if count == 0 {
 		//新用户上线
 		on := 0
@@ -123,44 +123,44 @@ func (channel *Channel) Subscribe(appid int64, uid int64, online bool) {
 			on = 1
 		}
 		id := &SubscribeMessage{appid: appid, uid: uid, online: int8(on)}
-		msg := &Message{cmd: MSG_SUBSCRIBE, body: id}
+		msg := &Message{cmd: MsgSubscribe, body: id}
 		channel.wt <- msg
-	} else if online_count == 0 && online {
+	} else if onlineCount == 0 && online {
 		//手机端上线
 		id := &SubscribeMessage{appid: appid, uid: uid, online: 1}
-		msg := &Message{cmd: MSG_SUBSCRIBE, body: id}
+		msg := &Message{cmd: MsgSubscribe, body: id}
 		channel.wt <- msg
 	}
 }
 
 func (channel *Channel) Unsubscribe(appid int64, uid int64, online bool) {
-	count, online_count := channel.RemoveSubscribe(appid, uid, online)
-	log.Info("unsub count:", count, online_count)
+	count, onlineCount := channel.RemoveSubscribe(appid, uid, online)
+	log.Info("unsub count:", count, onlineCount)
 	if count == 1 {
 		//用户断开全部连接
-		id := &AppUserID{appid: appid, uid: uid}
-		msg := &Message{cmd: MSG_UNSUBSCRIBE, body: id}
+		id := &AppUser{appid: appid, uid: uid}
+		msg := &Message{cmd: MsgUnsubscribe, body: id}
 		channel.wt <- msg
-	} else if count > 1 && online_count == 1 && online {
+	} else if count > 1 && onlineCount == 1 && online {
 		//手机端断开连接,pc/web端还未断开连接
 		id := &SubscribeMessage{appid: appid, uid: uid, online: 0}
-		msg := &Message{cmd: MSG_SUBSCRIBE, body: id}
+		msg := &Message{cmd: MsgSubscribe, body: id}
 		channel.wt <- msg
 	}
 }
 
 func (channel *Channel) Publish(amsg *AppMessage) {
-	msg := &Message{cmd: MSG_PUBLISH, body: amsg}
+	msg := &Message{cmd: MsgPublish, body: amsg}
 	channel.wt <- msg
 }
 
 func (channel *Channel) PublishGroup(amsg *AppMessage) {
-	msg := &Message{cmd: MSG_PUBLISH_GROUP, body: amsg}
+	msg := &Message{cmd: MsgPublishGroup, body: amsg}
 	channel.wt <- msg
 }
 
-//返回添加前的计数
-func (channel *Channel) AddSubscribeRoom(appid, room_id int64) int {
+// AddSubscribeRoom 返回添加前的计数
+func (channel *Channel) AddSubscribeRoom(appid, roomId int64) int {
 	channel.mutex.Lock()
 	defer channel.mutex.Unlock()
 	subscriber, ok := channel.subscribers[appid]
@@ -169,13 +169,13 @@ func (channel *Channel) AddSubscribeRoom(appid, room_id int64) int {
 		channel.subscribers[appid] = subscriber
 	}
 	//不存在count==0
-	count := subscriber.room_ids[room_id]
-	subscriber.room_ids[room_id] = count + 1
+	count := subscriber.roomIds[roomId]
+	subscriber.roomIds[roomId] = count + 1
 	return count
 }
 
-//返回删除前的计数
-func (channel *Channel) RemoveSubscribeRoom(appid, room_id int64) int {
+// RemoveSubscribeRoom 返回删除前的计数
+func (channel *Channel) RemoveSubscribeRoom(appid, roomId int64) int {
 	channel.mutex.Lock()
 	defer channel.mutex.Unlock()
 	subscriber, ok := channel.subscribers[appid]
@@ -183,58 +183,58 @@ func (channel *Channel) RemoveSubscribeRoom(appid, room_id int64) int {
 		return 0
 	}
 
-	count, ok := subscriber.room_ids[room_id]
+	count, ok := subscriber.roomIds[roomId]
 	if ok {
 		if count > 1 {
-			subscriber.room_ids[room_id] = count - 1
+			subscriber.roomIds[roomId] = count - 1
 		} else {
-			delete(subscriber.room_ids, room_id)
+			delete(subscriber.roomIds, roomId)
 		}
 	}
 	return count
 }
 
-func (channel *Channel) GetAllRoomSubscriber() []*AppRoomID {
+func (channel *Channel) GetAllRoomSubscribers() []*AppRoom {
 	channel.mutex.Lock()
 	defer channel.mutex.Unlock()
 
-	subs := make([]*AppRoomID, 0, 100)
+	subs := make([]*AppRoom, 0, 100)
 	for appid, s := range channel.subscribers {
-		for room_id, _ := range s.room_ids {
-			id := &AppRoomID{appid: appid, room_id: room_id}
+		for roomId, _ := range s.roomIds {
+			id := &AppRoom{appid: appid, roomId: roomId}
 			subs = append(subs, id)
 		}
 	}
 	return subs
 }
 
-func (channel *Channel) SubscribeRoom(appid int64, room_id int64) {
-	count := channel.AddSubscribeRoom(appid, room_id)
+func (channel *Channel) SubscribeRoom(appid int64, roomId int64) {
+	count := channel.AddSubscribeRoom(appid, roomId)
 	log.Info("sub room count:", count)
 	if count == 0 {
-		id := &AppRoomID{appid: appid, room_id: room_id}
-		msg := &Message{cmd: MSG_SUBSCRIBE_ROOM, body: id}
+		id := &AppRoom{appid: appid, roomId: roomId}
+		msg := &Message{cmd: MsgSubscribeRoom, body: id}
 		channel.wt <- msg
 	}
 }
 
-func (channel *Channel) UnsubscribeRoom(appid int64, room_id int64) {
-	count := channel.RemoveSubscribeRoom(appid, room_id)
+func (channel *Channel) UnsubscribeRoom(appid int64, roomId int64) {
+	count := channel.RemoveSubscribeRoom(appid, roomId)
 	log.Info("unsub room count:", count)
 	if count == 1 {
-		id := &AppRoomID{appid: appid, room_id: room_id}
-		msg := &Message{cmd: MSG_UNSUBSCRIBE_ROOM, body: id}
+		id := &AppRoom{appid: appid, roomId: roomId}
+		msg := &Message{cmd: MsgUnsubscribeRoom, body: id}
 		channel.wt <- msg
 	}
 }
 
 func (channel *Channel) PublishRoom(amsg *AppMessage) {
-	msg := &Message{cmd: MSG_PUBLISH_ROOM, body: amsg}
+	msg := &Message{cmd: MsgPublishRoom, body: amsg}
 	channel.wt <- msg
 }
 
 func (channel *Channel) ReSubscribe(conn *net.TCPConn, seq int) int {
-	subs := channel.GetAllSubscriber()
+	subs := channel.GetAllSubscribers()
 	for appid, sub := range subs {
 		for uid, count := range sub.uids {
 			//低16位表示总数量 高16位表示online的数量
@@ -245,7 +245,7 @@ func (channel *Channel) ReSubscribe(conn *net.TCPConn, seq int) int {
 			}
 
 			id := &SubscribeMessage{appid: appid, uid: uid, online: int8(on)}
-			msg := &Message{cmd: MSG_SUBSCRIBE, body: id}
+			msg := &Message{cmd: MsgSubscribe, body: id}
 
 			seq = seq + 1
 			msg.seq = seq
@@ -256,9 +256,9 @@ func (channel *Channel) ReSubscribe(conn *net.TCPConn, seq int) int {
 }
 
 func (channel *Channel) ReSubscribeRoom(conn *net.TCPConn, seq int) int {
-	subs := channel.GetAllRoomSubscriber()
+	subs := channel.GetAllRoomSubscribers()
 	for _, id := range subs {
-		msg := &Message{cmd: MSG_SUBSCRIBE_ROOM, body: id}
+		msg := &Message{cmd: MsgSubscribeRoom, body: id}
 		seq = seq + 1
 		msg.seq = seq
 		SendMessage(conn, msg)
@@ -269,7 +269,7 @@ func (channel *Channel) ReSubscribeRoom(conn *net.TCPConn, seq int) int {
 func (channel *Channel) RunOnce(conn *net.TCPConn) {
 	defer conn.Close()
 
-	closed_ch := make(chan bool)
+	closedCh := make(chan bool)
 	seq := 0
 	seq = channel.ReSubscribe(conn, seq)
 	seq = channel.ReSubscribeRoom(conn, seq)
@@ -278,24 +278,24 @@ func (channel *Channel) RunOnce(conn *net.TCPConn) {
 		for {
 			msg := ReceiveMessage(conn)
 			if msg == nil {
-				close(closed_ch)
+				close(closedCh)
 				return
 			}
 			log.Info("channel recv message:", Command(msg.cmd))
-			if msg.cmd == MSG_PUBLISH {
+			if msg.cmd == MsgPublish {
 				amsg := msg.body.(*AppMessage)
 				if channel.dispatch != nil {
 					channel.dispatch(amsg)
 				}
-			} else if msg.cmd == MSG_PUBLISH_ROOM {
+			} else if msg.cmd == MsgPublishRoom {
 				amsg := msg.body.(*AppMessage)
-				if channel.dispatch_room != nil {
-					channel.dispatch_room(amsg)
+				if channel.dispatchRoom != nil {
+					channel.dispatchRoom(amsg)
 				}
-			} else if msg.cmd == MSG_PUBLISH_GROUP {
+			} else if msg.cmd == MsgPublishGroup {
 				amsg := msg.body.(*AppMessage)
-				if channel.dispatch_group != nil {
-					channel.dispatch_group(amsg)
+				if channel.dispatchGroup != nil {
+					channel.dispatchGroup(amsg)
 				}
 			} else {
 				log.Error("unknown message cmd:", msg.cmd)
@@ -305,7 +305,7 @@ func (channel *Channel) RunOnce(conn *net.TCPConn) {
 
 	for {
 		select {
-		case _ = <-closed_ch:
+		case _ = <-closedCh:
 			log.Info("channel closed")
 			return
 		case msg := <-channel.wt:
@@ -335,8 +335,8 @@ func (channel *Channel) Run() {
 			continue
 		}
 		tconn := conn.(*net.TCPConn)
-		tconn.SetKeepAlive(true)
-		tconn.SetKeepAlivePeriod(time.Duration(10 * 60 * time.Second))
+		_ = tconn.SetKeepAlive(true)
+		_ = tconn.SetKeepAlivePeriod(10 * 60 * time.Second)
 		log.Info("channel connected")
 		nsleep = 100
 		channel.RunOnce(tconn)

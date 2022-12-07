@@ -12,7 +12,7 @@ type Client struct {
 	*GroupClient
 	*RoomClient
 	*CustomerClient
-	public_ip int32
+	publicIp int32
 }
 
 func NewClient(conn interface{}) *Client {
@@ -21,11 +21,11 @@ func NewClient(conn interface{}) *Client {
 	//初始化Connection
 	client.conn = conn // conn is net.Conn or engineio.Conn
 
-	if net_conn, ok := conn.(net.Conn); ok {
-		addr := net_conn.LocalAddr()
+	if netConn, ok := conn.(net.Conn); ok {
+		addr := netConn.LocalAddr()
 		if taddr, ok := addr.(*net.TCPAddr); ok {
 			ip4 := taddr.IP.To4()
-			client.public_ip = int32(ip4[0])<<24 | int32(ip4[1])<<16 | int32(ip4[2])<<8 | int32(ip4[3])
+			client.publicIp = int32(ip4[0])<<24 | int32(ip4[1])<<16 | int32(ip4[2])<<8 | int32(ip4[3])
 		}
 	}
 
@@ -35,7 +35,7 @@ func NewClient(conn interface{}) *Client {
 	client.pwt = make(chan []*Message, 10)
 	client.messages = list.New()
 
-	atomic.AddInt64(&server_summary.nconnections, 1)
+	atomic.AddInt64(&serverSummary.nconnections, 1)
 
 	client.PeerClient = &PeerClient{&client.Connection}
 	client.GroupClient = &GroupClient{&client.Connection}
@@ -73,7 +73,7 @@ func (client *Client) Read() {
 }
 
 func (client *Client) RemoveClient() {
-	route := app_route.FindRoute(client.appid)
+	route := appRoute.FindRoute(client.appid)
 	if route == nil {
 		log.Warning("can't find app route")
 		return
@@ -86,9 +86,9 @@ func (client *Client) RemoveClient() {
 }
 
 func (client *Client) HandleClientClosed() {
-	atomic.AddInt64(&server_summary.nconnections, -1)
+	atomic.AddInt64(&serverSummary.nconnections, -1)
 	if client.uid > 0 {
-		atomic.AddInt64(&server_summary.nclients, -1)
+		atomic.AddInt64(&serverSummary.nclients, -1)
 	}
 	atomic.StoreInt32(&client.closed, 1)
 
@@ -104,11 +104,11 @@ func (client *Client) HandleClientClosed() {
 func (client *Client) HandleMessage(msg *Message) {
 	log.Info("msg cmd:", Command(msg.cmd))
 	switch msg.cmd {
-	case MSG_AUTH_TOKEN:
-		client.HandleAuthToken(msg.body.(*AuthenticationToken), msg.version)
-	case MSG_ACK:
+	case MsgAuthToken:
+		client.HandleAuthToken(msg.body.(*AuthToken), msg.version)
+	case MsgAck:
 		client.HandleACK(msg.body.(*MessageACK))
-	case MSG_PING:
+	case MsgPing:
 		client.HandlePing()
 	}
 
@@ -119,16 +119,16 @@ func (client *Client) HandleMessage(msg *Message) {
 }
 
 func (client *Client) AuthToken(token string) (int64, int64, int, bool, error) {
-	appid, uid, forbidden, notification_on, err := LoadUserAccessToken(token)
+	appid, uid, forbidden, notificationOn, err := LoadUserAccessToken(token)
 
 	if err != nil {
 		return 0, 0, 0, false, err
 	}
 
-	return appid, uid, forbidden, notification_on, nil
+	return appid, uid, forbidden, notificationOn, nil
 }
 
-func (client *Client) HandleAuthToken(login *AuthenticationToken, version int) {
+func (client *Client) HandleAuthToken(login *AuthToken, version int) {
 	if client.uid > 0 {
 		log.Info("repeat login")
 		return
@@ -138,28 +138,28 @@ func (client *Client) HandleAuthToken(login *AuthenticationToken, version int) {
 	appid, uid, fb, on, err := client.AuthToken(login.token)
 	if err != nil {
 		log.Infof("auth token:%s err:%s", login.token, err)
-		msg := &Message{cmd: MSG_AUTH_STATUS, version: version, body: &AuthenticationStatus{1, 0}}
+		msg := &Message{cmd: MsgAuthStatus, version: version, body: &AuthStatus{1, 0}}
 		client.EnqueueMessage(msg)
 		return
 	}
 	if uid == 0 {
 		log.Info("auth token uid==0")
-		msg := &Message{cmd: MSG_AUTH_STATUS, version: version, body: &AuthenticationStatus{1, 0}}
+		msg := &Message{cmd: MsgAuthStatus, version: version, body: &AuthStatus{1, 0}}
 		client.EnqueueMessage(msg)
 		return
 	}
 
-	if login.platform_id != PLATFORM_WEB && len(login.device_id) > 0 {
-		client.device_ID, err = GetDeviceID(login.device_id, int(login.platform_id))
+	if login.platformId != PlatformWeb && len(login.deviceId) > 0 {
+		client.deviceId, err = GetDeviceId(login.deviceId, int(login.platformId))
 		if err != nil {
 			log.Info("auth token uid==0")
-			msg := &Message{cmd: MSG_AUTH_STATUS, version: version, body: &AuthenticationStatus{1, 0}}
+			msg := &Message{cmd: MsgAuthStatus, version: version, body: &AuthStatus{1, 0}}
 			client.EnqueueMessage(msg)
 			return
 		}
 	}
 
-	is_mobile := login.platform_id == PLATFORM_IOS || login.platform_id == PLATFORM_ANDROID
+	is_mobile := login.platformId == PlatformIos || login.platformId == PlatformAndroid
 	online := true
 	if on && !is_mobile {
 		online = false
@@ -168,34 +168,34 @@ func (client *Client) HandleAuthToken(login *AuthenticationToken, version int) {
 	client.appid = appid
 	client.uid = uid
 	client.forbidden = int32(fb)
-	client.notification_on = on
+	client.notificationOn = on
 	client.online = online
 	client.version = version
-	client.device_id = login.device_id
-	client.platform_id = login.platform_id
+	client.device = login.deviceId
+	client.platformId = login.platformId
 	client.tm = time.Now()
 	log.Infof("auth token:%s appid:%d uid:%d device id:%s:%d forbidden:%d notification on:%t online:%t",
-		login.token, client.appid, client.uid, client.device_id,
-		client.device_ID, client.forbidden, client.notification_on, client.online)
+		login.token, client.appid, client.uid, client.device,
+		client.deviceId, client.forbidden, client.notificationOn, client.online)
 
-	msg := &Message{cmd: MSG_AUTH_STATUS, version: version, body: &AuthenticationStatus{0, client.public_ip}}
+	msg := &Message{cmd: MsgAuthStatus, version: version, body: &AuthStatus{0, client.publicIp}}
 	client.EnqueueMessage(msg)
 
 	client.AddClient()
 
 	client.PeerClient.Login()
 
-	CountDAU(client.appid, client.uid)
-	atomic.AddInt64(&server_summary.nclients, 1)
+	CountDau(client.appid, client.uid)
+	atomic.AddInt64(&serverSummary.nclients, 1)
 }
 
 func (client *Client) AddClient() {
-	route := app_route.FindOrAddRoute(client.appid)
+	route := appRoute.FindOrAddRoute(client.appid)
 	route.AddClient(client)
 }
 
 func (client *Client) HandlePing() {
-	m := &Message{cmd: MSG_PONG}
+	m := &Message{cmd: MsgPong}
 	client.EnqueueMessage(m)
 	if client.uid == 0 {
 		log.Warning("client has't been authenticated")
@@ -222,8 +222,8 @@ func (client *Client) SendMessages(seq int) int {
 	e := messages.Front()
 	for e != nil {
 		msg := e.Value.(*Message)
-		if msg.cmd == MSG_RT || msg.cmd == MSG_IM || msg.cmd == MSG_GROUP_IM {
-			atomic.AddInt64(&server_summary.out_message_count, 1)
+		if msg.cmd == MsgRt || msg.cmd == MsgIm || msg.cmd == MsgGroupIm {
+			atomic.AddInt64(&serverSummary.out_message_count, 1)
 		}
 		seq++
 		//以当前客户端所用版本号发送消息
@@ -249,8 +249,8 @@ func (client *Client) Write() {
 				log.Infof("client:%d socket closed", client.uid)
 				break
 			}
-			if msg.cmd == MSG_RT || msg.cmd == MSG_IM || msg.cmd == MSG_GROUP_IM {
-				atomic.AddInt64(&server_summary.out_message_count, 1)
+			if msg.cmd == MsgRt || msg.cmd == MsgIm || msg.cmd == MsgGroupIm {
+				atomic.AddInt64(&serverSummary.out_message_count, 1)
 			}
 			seq++
 
@@ -259,8 +259,8 @@ func (client *Client) Write() {
 			client.send(vmsg)
 		case messages := <-client.pwt:
 			for _, msg := range messages {
-				if msg.cmd == MSG_RT || msg.cmd == MSG_IM || msg.cmd == MSG_GROUP_IM {
-					atomic.AddInt64(&server_summary.out_message_count, 1)
+				if msg.cmd == MsgRt || msg.cmd == MsgIm || msg.cmd == MsgGroupIm {
+					atomic.AddInt64(&serverSummary.out_message_count, 1)
 				}
 				seq++
 

@@ -13,7 +13,7 @@ import "github.com/bitly/go-simplejson"
 func SendGroupNotification(appid int64, gid int64,
 	notification string, members IntSet) {
 
-	msg := &Message{cmd: MSG_GROUP_NOTIFICATION, body: &GroupNotification{notification}}
+	msg := &Message{cmd: MsgGroupNotification, body: &GroupNotification{notification}}
 
 	for member := range members {
 		msgid, err := SaveMessage(appid, member, 0, msg)
@@ -22,14 +22,14 @@ func SendGroupNotification(appid int64, gid int64,
 		}
 
 		//发送同步的通知消息
-		notify := &Message{cmd: MSG_SYNC_NOTIFY, body: &SyncKey{msgid}}
+		notify := &Message{cmd: MsgSyncNotify, body: &SyncKey{msgid}}
 		SendAppMessage(appid, member, notify)
 	}
 }
 
 func SendGroupIMMessage(im *IMMessage, appid int64) {
-	m := &Message{cmd: MSG_GROUP_IM, version: DEFAULT_VERSION, body: im}
-	group := group_manager.FindGroup(im.receiver)
+	m := &Message{cmd: MsgGroupIm, version: DefaultVersion, body: im}
+	group := groupManager.FindGroup(im.receiver)
 	if group == nil {
 		log.Warning("can't find group:", im.receiver)
 		return
@@ -44,7 +44,7 @@ func SendGroupIMMessage(im *IMMessage, appid int64) {
 		PushGroupMessage(appid, im.receiver, m)
 
 		//发送同步的通知消息
-		notify := &Message{cmd: MSG_SYNC_GROUP_NOTIFY, body: &GroupSyncKey{group_id: im.receiver, sync_key: msgid}}
+		notify := &Message{cmd: MsgSyncGroupNotify, body: &GroupSyncKey{groupId: im.receiver, syncKey: msgid}}
 		SendAppGroupMessage(appid, im.receiver, notify)
 
 	} else {
@@ -59,15 +59,15 @@ func SendGroupIMMessage(im *IMMessage, appid int64) {
 			PushMessage(appid, member, m)
 
 			//发送同步的通知消息
-			notify := &Message{cmd: MSG_SYNC_NOTIFY, body: &SyncKey{sync_key: msgid}}
+			notify := &Message{cmd: MsgSyncNotify, body: &SyncKey{syncKey: msgid}}
 			SendAppMessage(appid, member, notify)
 		}
 	}
-	atomic.AddInt64(&server_summary.in_message_count, 1)
+	atomic.AddInt64(&serverSummary.in_message_count, 1)
 }
 
 func SendIMMessage(im *IMMessage, appid int64) {
-	m := &Message{cmd: MSG_IM, version: DEFAULT_VERSION, body: im}
+	m := &Message{cmd: MsgIm, version: DefaultVersion, body: im}
 	msgid, err := SaveMessage(appid, im.receiver, 0, m)
 	if err != nil {
 		return
@@ -83,14 +83,14 @@ func SendIMMessage(im *IMMessage, appid int64) {
 	PushMessage(appid, im.receiver, m)
 
 	//发送同步的通知消息
-	notify := &Message{cmd: MSG_SYNC_NOTIFY, body: &SyncKey{sync_key: msgid}}
+	notify := &Message{cmd: MsgSyncNotify, body: &SyncKey{syncKey: msgid}}
 	SendAppMessage(appid, im.receiver, notify)
 
 	//发送同步的通知消息
-	notify = &Message{cmd: MSG_SYNC_NOTIFY, body: &SyncKey{sync_key: msgid2}}
+	notify = &Message{cmd: MsgSyncNotify, body: &SyncKey{syncKey: msgid2}}
 	SendAppMessage(appid, im.sender, notify)
 
-	atomic.AddInt64(&server_summary.in_message_count, 1)
+	atomic.AddInt64(&serverSummary.in_message_count, 1)
 }
 
 //http
@@ -144,7 +144,7 @@ func PostGroupNotification(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	group := group_manager.FindGroup(group_id)
+	group := groupManager.FindGroup(group_id)
 	if group != nil {
 		ms := group.Members()
 		for m, _ := range ms {
@@ -270,7 +270,7 @@ func LoadLatestMessage(w http.ResponseWriter, req *http.Request) {
 	rpc := GetStorageRPCClient(uid)
 
 	s := &HistoryRequest{
-		AppID: appid,
+		Appid: appid,
 		Uid:   uid,
 		Limit: int32(limit),
 	}
@@ -285,9 +285,9 @@ func LoadLatestMessage(w http.ResponseWriter, req *http.Request) {
 	hm := resp.([]*HistoryMessage)
 	messages := make([]*EMessage, 0)
 	for _, msg := range hm {
-		m := &Message{cmd: int(msg.Cmd), version: DEFAULT_VERSION}
+		m := &Message{cmd: int(msg.Cmd), version: DefaultVersion}
 		m.FromData(msg.Raw)
-		e := &EMessage{msgid: msg.MsgID, device_id: msg.DeviceID, msg: m}
+		e := &EMessage{msgid: msg.Msgid, deviceId: msg.DeviceId, msg: m}
 		messages = append(messages, e)
 	}
 
@@ -303,8 +303,8 @@ func LoadLatestMessage(w http.ResponseWriter, req *http.Request) {
 
 	msg_list := make([]map[string]interface{}, 0, len(messages))
 	for _, emsg := range messages {
-		if emsg.msg.cmd == MSG_IM ||
-			emsg.msg.cmd == MSG_GROUP_IM {
+		if emsg.msg.cmd == MsgIm ||
+			emsg.msg.cmd == MsgGroupIm {
 			im := emsg.msg.body.(*IMMessage)
 
 			obj := make(map[string]interface{})
@@ -316,17 +316,17 @@ func LoadLatestMessage(w http.ResponseWriter, req *http.Request) {
 			obj["id"] = emsg.msgid
 			msg_list = append(msg_list, obj)
 
-		} else if emsg.msg.cmd == MSG_CUSTOMER ||
-			emsg.msg.cmd == MSG_CUSTOMER_SUPPORT {
+		} else if emsg.msg.cmd == MsgCustomer ||
+			emsg.msg.cmd == MsgCustomerSupport {
 			im := emsg.msg.body.(*CustomerMessage)
 
 			obj := make(map[string]interface{})
 			obj["content"] = im.content
 			obj["timestamp"] = im.timestamp
-			obj["customer_appid"] = im.customer_appid
-			obj["customer_id"] = im.customer_id
-			obj["store_id"] = im.store_id
-			obj["seller_id"] = im.seller_id
+			obj["customer_appid"] = im.customerAppid
+			obj["customer_id"] = im.customerId
+			obj["store_id"] = im.storeId
+			obj["seller_id"] = im.sellerId
 			obj["command"] = emsg.msg.cmd
 			obj["id"] = emsg.msgid
 			msg_list = append(msg_list, obj)
@@ -369,10 +369,10 @@ func LoadHistoryMessage(w http.ResponseWriter, req *http.Request) {
 	rpc := GetStorageRPCClient(uid)
 
 	s := &SyncHistory{
-		AppID:     appid,
+		Appid:     appid,
 		Uid:       uid,
-		DeviceID:  0,
-		LastMsgID: msgid,
+		DeviceId:  0,
+		LastMsgid: msgid,
 	}
 
 	resp, err := rpc.Call("SyncMessage", s)
@@ -396,10 +396,10 @@ func LoadHistoryMessage(w http.ResponseWriter, req *http.Request) {
 
 	msg_list := make([]map[string]interface{}, 0, len(messages))
 	for _, emsg := range messages {
-		msg := &Message{cmd: int(emsg.Cmd), version: DEFAULT_VERSION}
+		msg := &Message{cmd: int(emsg.Cmd), version: DefaultVersion}
 		msg.FromData(emsg.Raw)
-		if msg.cmd == MSG_IM ||
-			msg.cmd == MSG_GROUP_IM {
+		if msg.cmd == MsgIm ||
+			msg.cmd == MsgGroupIm {
 			im := msg.body.(*IMMessage)
 
 			obj := make(map[string]interface{})
@@ -408,22 +408,22 @@ func LoadHistoryMessage(w http.ResponseWriter, req *http.Request) {
 			obj["sender"] = im.sender
 			obj["receiver"] = im.receiver
 			obj["command"] = emsg.Cmd
-			obj["id"] = emsg.MsgID
+			obj["id"] = emsg.Msgid
 			msg_list = append(msg_list, obj)
 
-		} else if msg.cmd == MSG_CUSTOMER ||
-			msg.cmd == MSG_CUSTOMER_SUPPORT {
+		} else if msg.cmd == MsgCustomer ||
+			msg.cmd == MsgCustomerSupport {
 			im := msg.body.(*CustomerMessage)
 
 			obj := make(map[string]interface{})
 			obj["content"] = im.content
 			obj["timestamp"] = im.timestamp
-			obj["customer_appid"] = im.customer_appid
-			obj["customer_id"] = im.customer_id
-			obj["store_id"] = im.store_id
-			obj["seller_id"] = im.seller_id
+			obj["customer_appid"] = im.customerAppid
+			obj["customer_id"] = im.customerId
+			obj["store_id"] = im.storeId
+			obj["seller_id"] = im.sellerId
 			obj["command"] = emsg.Cmd
-			obj["id"] = emsg.MsgID
+			obj["id"] = emsg.Msgid
 			msg_list = append(msg_list, obj)
 		}
 	}
@@ -454,7 +454,7 @@ func GetOfflineCount(w http.ResponseWriter, req *http.Request) {
 	}
 
 	last_id := GetSyncKey(appid, uid)
-	sync_key := SyncHistory{AppID: appid, Uid: uid, LastMsgID: last_id}
+	sync_key := SyncHistory{Appid: appid, Uid: uid, LastMsgid: last_id}
 
 	dc := GetStorageRPCClient(uid)
 
@@ -496,7 +496,7 @@ func SendNotification(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	sys := &SystemMessage{string(body)}
-	msg := &Message{cmd: MSG_NOTIFICATION, body: sys}
+	msg := &Message{cmd: MsgNotification, body: sys}
 	SendAppMessage(appid, uid, msg)
 
 	w.WriteHeader(200)
@@ -525,7 +525,7 @@ func SendSystemMessage(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	sys := &SystemMessage{string(body)}
-	msg := &Message{cmd: MSG_SYSTEM, body: sys}
+	msg := &Message{cmd: MsgSystem, body: sys}
 
 	msgid, err := SaveMessage(appid, uid, 0, msg)
 	if err != nil {
@@ -537,7 +537,7 @@ func SendSystemMessage(w http.ResponseWriter, req *http.Request) {
 	PushMessage(appid, uid, msg)
 
 	//发送同步的通知消息
-	notify := &Message{cmd: MSG_SYNC_NOTIFY, body: &SyncKey{msgid}}
+	notify := &Message{cmd: MsgSyncNotify, body: &SyncKey{msgid}}
 	SendAppMessage(appid, uid, notify)
 
 	w.WriteHeader(200)
@@ -577,14 +577,14 @@ func SendRoomMessage(w http.ResponseWriter, req *http.Request) {
 	room_im.receiver = room_id
 	room_im.content = string(body)
 
-	msg := &Message{cmd: MSG_ROOM_IM, body: room_im}
-	route := app_route.FindOrAddRoute(appid)
+	msg := &Message{cmd: MsgRoomIm, body: room_im}
+	route := appRoute.FindOrAddRoute(appid)
 	clients := route.FindRoomClientSet(room_id)
 	for c, _ := range clients {
 		c.wt <- msg
 	}
 
-	amsg := &AppMessage{appid: appid, receiver: room_id, msg: msg}
+	amsg := &AppMessage{appid: appid, receiver: room_id, message: msg}
 	channel := GetRoomChannel(room_id)
 	channel.PublishRoom(amsg)
 
@@ -641,38 +641,38 @@ func SendCustomerSupportMessage(w http.ResponseWriter, req *http.Request) {
 	}
 
 	cm := &CustomerMessage{}
-	cm.customer_appid = customer_appid
-	cm.customer_id = customer_id
-	cm.store_id = store_id
-	cm.seller_id = seller_id
+	cm.customerAppid = customer_appid
+	cm.customerId = customer_id
+	cm.storeId = store_id
+	cm.sellerId = seller_id
 	cm.content = content
 	cm.timestamp = int32(time.Now().Unix())
 
-	m := &Message{cmd: MSG_CUSTOMER_SUPPORT, body: cm}
+	m := &Message{cmd: MsgCustomerSupport, body: cm}
 
-	msgid, err := SaveMessage(cm.customer_appid, cm.customer_id, 0, m)
+	msgid, err := SaveMessage(cm.customerAppid, cm.customerId, 0, m)
 	if err != nil {
 		log.Warning("save message error:", err)
 		WriteHttpError(500, "internal server error", w)
 		return
 	}
 
-	msgid2, err := SaveMessage(config.kefu_appid, cm.seller_id, 0, m)
+	msgid2, err := SaveMessage(config.kefuAppid, cm.sellerId, 0, m)
 	if err != nil {
 		log.Warning("save message error:", err)
 		WriteHttpError(500, "internal server error", w)
 		return
 	}
 
-	PushMessage(cm.customer_appid, cm.customer_id, m)
+	PushMessage(cm.customerAppid, cm.customerId, m)
 
 	//发送给自己的其它登录点
-	notify := &Message{cmd: MSG_SYNC_NOTIFY, body: &SyncKey{msgid2}}
-	SendAppMessage(config.kefu_appid, cm.seller_id, notify)
+	notify := &Message{cmd: MsgSyncNotify, body: &SyncKey{msgid2}}
+	SendAppMessage(config.kefuAppid, cm.sellerId, notify)
 
 	//发送同步的通知消息
-	notify = &Message{cmd: MSG_SYNC_NOTIFY, body: &SyncKey{msgid}}
-	SendAppMessage(cm.customer_appid, cm.customer_id, notify)
+	notify = &Message{cmd: MsgSyncNotify, body: &SyncKey{msgid}}
+	SendAppMessage(cm.customerAppid, cm.customerId, notify)
 
 	w.WriteHeader(200)
 }
@@ -727,37 +727,37 @@ func SendCustomerMessage(w http.ResponseWriter, req *http.Request) {
 	}
 
 	cm := &CustomerMessage{}
-	cm.customer_appid = customer_appid
-	cm.customer_id = customer_id
-	cm.store_id = store_id
-	cm.seller_id = seller_id
+	cm.customerAppid = customer_appid
+	cm.customerId = customer_id
+	cm.storeId = store_id
+	cm.sellerId = seller_id
 	cm.content = content
 	cm.timestamp = int32(time.Now().Unix())
 
-	m := &Message{cmd: MSG_CUSTOMER, body: cm}
+	m := &Message{cmd: MsgCustomer, body: cm}
 
-	msgid, err := SaveMessage(config.kefu_appid, cm.seller_id, 0, m)
+	msgid, err := SaveMessage(config.kefuAppid, cm.sellerId, 0, m)
 	if err != nil {
 		log.Warning("save message error:", err)
 		WriteHttpError(500, "internal server error", w)
 		return
 	}
-	msgid2, err := SaveMessage(cm.customer_appid, cm.customer_id, 0, m)
+	msgid2, err := SaveMessage(cm.customerAppid, cm.customerId, 0, m)
 	if err != nil {
 		log.Warning("save message error:", err)
 		WriteHttpError(500, "internal server error", w)
 		return
 	}
 
-	PushMessage(config.kefu_appid, cm.seller_id, m)
+	PushMessage(config.kefuAppid, cm.sellerId, m)
 
 	//发送同步的通知消息
-	notify := &Message{cmd: MSG_SYNC_NOTIFY, body: &SyncKey{msgid}}
-	SendAppMessage(config.kefu_appid, cm.seller_id, notify)
+	notify := &Message{cmd: MsgSyncNotify, body: &SyncKey{msgid}}
+	SendAppMessage(config.kefuAppid, cm.sellerId, notify)
 
 	//发送给自己的其它登录点
-	notify = &Message{cmd: MSG_SYNC_NOTIFY, body: &SyncKey{msgid2}}
-	SendAppMessage(cm.customer_appid, cm.customer_id, notify)
+	notify = &Message{cmd: MsgSyncNotify, body: &SyncKey{msgid2}}
+	SendAppMessage(cm.customerAppid, cm.customerId, notify)
 
 	resp := make(map[string]interface{})
 	resp["seller_id"] = seller_id
@@ -798,7 +798,7 @@ func SendRealtimeMessage(w http.ResponseWriter, req *http.Request) {
 	rt.receiver = receiver
 	rt.content = string(body)
 
-	msg := &Message{cmd: MSG_RT, body: rt}
+	msg := &Message{cmd: MsgRt, body: rt}
 	SendAppMessage(appid, receiver, msg)
 	w.WriteHeader(200)
 }

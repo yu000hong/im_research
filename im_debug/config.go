@@ -8,118 +8,118 @@ import "github.com/richmonkey/cfg"
 const DEFAULT_GROUP_DELIVER_COUNT = 4
 
 type Config struct {
-	port                  int
-	ssl_port              int
-	mysqldb_datasource    string
-	mysqldb_appdatasource string
-	pending_root          string
+	port                 int
+	sslPort              int
+	mysqldbDatasource    string
+	mysqldbAppdatasource string
+	pendingRoot          string
 
-	kefu_appid int64
+	kefuAppid int64
 
-	redis_address  string
-	redis_password string
-	redis_db       int
+	redisAddress  string
+	redisPassword string
+	redisDb       int
 
-	http_listen_address string
-	rpc_listen_address  string
+	httpListenAddress string
+	rpcListenAddress  string
 
 	//engine io
-	socket_io_address string
+	socketIoAddress string
 
-	tls_address string
-	cert_file   string
-	key_file    string
+	tlsAddress string
+	certFile   string
+	keyFile    string
 
-	storage_rpc_addrs       []string
-	group_storage_rpc_addrs []string
-	route_addrs             []string
-	group_route_addrs       []string //可选配置项， 超群群的route server
+	storageRpcAddrs      []string
+	groupStorageRpcAddrs []string
+	routeAddrs           []string
+	groupRouteAddrs      []string //可选配置项， 超群群的route server
 
-	group_deliver_count int    //群组消息投递并发数量,默认4
-	word_file           string //关键词字典文件
-	sync_self           bool   //是否同步自己发送的消息
+	groupDeliverCount int    //群组消息投递并发数量,默认4
+	wordFile          string //关键词字典文件
+	syncSelf          bool   //是否同步自己发送的消息
 }
 
-func get_int(app_cfg map[string]string, key string) int {
-	concurrency, present := app_cfg[key]
+func getInt(appCfg map[string]string, key string) int {
+	value, present := appCfg[key]
 	if !present {
 		log.Fatalf("key:%s non exist", key)
 	}
-	n, err := strconv.ParseInt(concurrency, 10, 64)
+	n, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
 		log.Fatalf("key:%s is't integer", key)
 	}
 	return int(n)
 }
 
-func get_opt_int(app_cfg map[string]string, key string) int64 {
-	concurrency, present := app_cfg[key]
+func getOptInt(appCfg map[string]string, key string) int64 {
+	value, present := appCfg[key]
 	if !present {
 		return 0
 	}
-	n, err := strconv.ParseInt(concurrency, 10, 64)
+	n, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
 		log.Fatalf("key:%s is't integer", key)
 	}
 	return n
 }
 
-func get_string(app_cfg map[string]string, key string) string {
-	concurrency, present := app_cfg[key]
+func getString(appCfg map[string]string, key string) string {
+	value, present := appCfg[key]
 	if !present {
 		log.Fatalf("key:%s non exist", key)
 	}
-	return concurrency
+	return value
 }
 
-func get_opt_string(app_cfg map[string]string, key string) string {
-	concurrency, present := app_cfg[key]
+func getOptString(appCfg map[string]string, key string) string {
+	value, present := appCfg[key]
 	if !present {
 		return ""
 	}
-	return concurrency
+	return value
 }
 
-func read_cfg(cfg_path string) *Config {
+func readCfg(cfgPath string) *Config {
 	config := new(Config)
-	app_cfg := make(map[string]string)
-	err := cfg.Load(cfg_path, app_cfg)
+	appCfg := make(map[string]string)
+	err := cfg.Load(cfgPath, appCfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	config.port = get_int(app_cfg, "port")
-	config.ssl_port = int(get_opt_int(app_cfg, "ssl_port"))
-	config.http_listen_address = get_string(app_cfg, "http_listen_address")
-	config.rpc_listen_address = get_string(app_cfg, "rpc_listen_address")
-	config.redis_address = get_string(app_cfg, "redis_address")
-	config.redis_password = get_opt_string(app_cfg, "redis_password")
-	db := get_opt_int(app_cfg, "redis_db")
-	config.redis_db = int(db)
+	config.port = getInt(appCfg, "port")
+	config.sslPort = int(getOptInt(appCfg, "ssl_port"))
+	config.httpListenAddress = getString(appCfg, "http_listen_address")
+	config.rpcListenAddress = getString(appCfg, "rpc_listen_address")
+	config.redisAddress = getString(appCfg, "redis_address")
+	config.redisPassword = getOptString(appCfg, "redis_password")
+	db := getOptInt(appCfg, "redis_db")
+	config.redisDb = int(db)
 
-	config.pending_root = get_string(app_cfg, "pending_root")
-	config.mysqldb_datasource = get_string(app_cfg, "mysqldb_source")
-	config.socket_io_address = get_string(app_cfg, "socket_io_address")
-	config.tls_address = get_opt_string(app_cfg, "tls_address")
-	config.cert_file = get_opt_string(app_cfg, "cert_file")
-	config.key_file = get_opt_string(app_cfg, "key_file")
+	config.pendingRoot = getString(appCfg, "pending_root")
+	config.mysqldbDatasource = getString(appCfg, "mysqldb_source")
+	config.socketIoAddress = getString(appCfg, "socket_io_address")
+	config.tlsAddress = getOptString(appCfg, "tls_address")
+	config.certFile = getOptString(appCfg, "cert_file")
+	config.keyFile = getOptString(appCfg, "key_file")
 
-	config.kefu_appid = get_opt_int(app_cfg, "kefu_appid")
+	config.kefuAppid = getOptInt(appCfg, "kefu_appid")
 
-	str := get_string(app_cfg, "storage_rpc_pool")
+	str := getString(appCfg, "storage_rpc_pool")
 	array := strings.Split(str, " ")
-	config.storage_rpc_addrs = array
-	if len(config.storage_rpc_addrs) == 0 {
+	config.storageRpcAddrs = array
+	if len(config.storageRpcAddrs) == 0 {
 		log.Fatal("storage pool config")
 	}
 
-	str = get_opt_string(app_cfg, "group_storage_rpc_pool")
+	str = getOptString(appCfg, "group_storage_rpc_pool")
 	if str != "" {
 		array = strings.Split(str, " ")
-		config.group_storage_rpc_addrs = array
+		config.groupStorageRpcAddrs = array
 		//check repeat
-		for _, addr := range config.group_storage_rpc_addrs {
-			for _, addr2 := range config.storage_rpc_addrs {
+		for _, addr := range config.groupStorageRpcAddrs {
+			for _, addr2 := range config.storageRpcAddrs {
 				if addr == addr2 {
 					log.Fatal("stroage and group storage address repeat")
 				}
@@ -127,21 +127,21 @@ func read_cfg(cfg_path string) *Config {
 		}
 	}
 
-	str = get_string(app_cfg, "route_pool")
+	str = getString(appCfg, "route_pool")
 	array = strings.Split(str, " ")
-	config.route_addrs = array
-	if len(config.route_addrs) == 0 {
+	config.routeAddrs = array
+	if len(config.routeAddrs) == 0 {
 		log.Fatal("route pool config")
 	}
 
-	str = get_opt_string(app_cfg, "group_route_pool")
+	str = getOptString(appCfg, "group_route_pool")
 	if str != "" {
 		array = strings.Split(str, " ")
-		config.group_route_addrs = array
+		config.groupRouteAddrs = array
 
 		//check repeat group_route_addrs and route_addrs
-		for _, addr := range config.group_route_addrs {
-			for _, addr2 := range config.route_addrs {
+		for _, addr := range config.groupRouteAddrs {
+			for _, addr2 := range config.routeAddrs {
 				if addr == addr2 {
 					log.Fatal("route and group route repeat")
 				}
@@ -149,12 +149,12 @@ func read_cfg(cfg_path string) *Config {
 		}
 	}
 
-	config.group_deliver_count = int(get_opt_int(app_cfg, "group_deliver_count"))
-	if config.group_deliver_count == 0 {
-		config.group_deliver_count = DEFAULT_GROUP_DELIVER_COUNT
+	config.groupDeliverCount = int(getOptInt(appCfg, "group_deliver_count"))
+	if config.groupDeliverCount == 0 {
+		config.groupDeliverCount = DEFAULT_GROUP_DELIVER_COUNT
 	}
 
-	config.word_file = get_opt_string(app_cfg, "word_file")
-	config.sync_self = get_opt_int(app_cfg, "sync_self") != 0
+	config.wordFile = getOptString(appCfg, "word_file")
+	config.syncSelf = getOptInt(appCfg, "sync_self") != 0
 	return config
 }

@@ -26,8 +26,7 @@ func (s *SIOServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	s.server.ServeHTTP(w, req)
 }
 
-func StartSocketIO(address string, tls_address string,
-	cert_file string, key_file string) {
+func StartSocketIO(address string, tlsAddress string, certFile string, keyFile string) {
 	server, err := engineio.NewServer(nil)
 	if err != nil {
 		log.Fatal(err)
@@ -39,7 +38,7 @@ func StartSocketIO(address string, tls_address string,
 			if err != nil {
 				log.Info("accept connect fail")
 			}
-			handlerEngineIOClient(conn)
+			handleEngineIOClient(conn)
 		}
 	}()
 
@@ -47,10 +46,10 @@ func StartSocketIO(address string, tls_address string,
 	mux.Handle("/engine.io/", &SIOServer{server})
 	log.Infof("EngineIO Serving at %s...", address)
 
-	if tls_address != "" && cert_file != "" && key_file != "" {
+	if tlsAddress != "" && certFile != "" && keyFile != "" {
 		go func() {
-			log.Infof("EngineIO Serving TLS at %s...", tls_address)
-			err = http.ListenAndServeTLS(tls_address, cert_file, key_file, mux)
+			log.Infof("EngineIO Serving TLS at %s...", tlsAddress)
+			err = http.ListenAndServeTLS(tlsAddress, certFile, keyFile, mux)
 			if err != nil {
 				log.Fatalf("listen err:%s", err)
 			}
@@ -62,7 +61,7 @@ func StartSocketIO(address string, tls_address string,
 	}
 }
 
-func handlerEngineIOClient(conn engineio.Conn) {
+func handleEngineIOClient(conn engineio.Conn) {
 	client := NewClient(conn)
 	client.Run()
 }
@@ -79,7 +78,7 @@ func SendEngineIOBinaryMessage(conn engineio.Conn, msg *Message) {
 		log.Info("engine io write error")
 		return
 	}
-	w.Close()
+	_ = w.Close()
 }
 
 func ReadEngineIOMessage(conn engineio.Conn) *Message {
@@ -91,15 +90,15 @@ func ReadEngineIOMessage(conn engineio.Conn) *Message {
 	if err != nil {
 		return nil
 	}
-	r.Close()
+	_ = r.Close()
 	if t == engineio.TEXT {
 		return nil
 	} else {
-		return ReadBinaryMesage(b)
+		return ReadBinaryMessage(b)
 	}
 }
 
-func ReadBinaryMesage(b []byte) *Message {
+func ReadBinaryMessage(b []byte) *Message {
 	reader := bytes.NewReader(b)
 	return ReceiveClientMessage(reader)
 }

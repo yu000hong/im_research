@@ -8,40 +8,40 @@ type AppRoute struct {
 }
 
 func NewAppRoute() *AppRoute {
-	app_route := new(AppRoute)
-	app_route.apps = make(map[int64]*Route)
-	return app_route
+	appRoute := new(AppRoute)
+	appRoute.apps = make(map[int64]*Route)
+	return appRoute
 }
 
-func (app_route *AppRoute) FindOrAddRoute(appid int64) *Route {
-	app_route.mutex.Lock()
-	defer app_route.mutex.Unlock()
-	if route, ok := app_route.apps[appid]; ok {
+func (appRoute *AppRoute) FindOrAddRoute(appid int64) *Route {
+	appRoute.mutex.Lock()
+	defer appRoute.mutex.Unlock()
+	if route, ok := appRoute.apps[appid]; ok {
 		return route
 	}
 	route := NewRoute(appid)
-	app_route.apps[appid] = route
+	appRoute.apps[appid] = route
 	return route
 }
 
-func (app_route *AppRoute) FindRoute(appid int64) *Route {
-	app_route.mutex.Lock()
-	defer app_route.mutex.Unlock()
-	return app_route.apps[appid]
+func (appRoute *AppRoute) FindRoute(appid int64) *Route {
+	appRoute.mutex.Lock()
+	defer appRoute.mutex.Unlock()
+	return appRoute.apps[appid]
 }
 
-func (app_route *AppRoute) AddRoute(route *Route) {
-	app_route.mutex.Lock()
-	defer app_route.mutex.Unlock()
-	app_route.apps[route.appid] = route
+func (appRoute *AppRoute) AddRoute(route *Route) {
+	appRoute.mutex.Lock()
+	defer appRoute.mutex.Unlock()
+	appRoute.apps[route.appid] = route
 }
 
-func (app_route *AppRoute) GetUsers() map[int64]IntSet {
-	app_route.mutex.Lock()
-	defer app_route.mutex.Unlock()
+func (appRoute *AppRoute) GetUsers() map[int64]IntSet {
+	appRoute.mutex.Lock()
+	defer appRoute.mutex.Unlock()
 
 	r := make(map[int64]IntSet)
-	for appid, route := range app_route.apps {
+	for appid, route := range appRoute.apps {
 		uids := route.GetUserIDs()
 		r[appid] = uids
 	}

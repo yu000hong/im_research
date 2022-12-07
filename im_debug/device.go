@@ -3,21 +3,21 @@ package main
 import "fmt"
 import "github.com/gomodule/redigo/redis"
 
-func GetDeviceID(device_id string, platform_id int) (int64, error) {
-	conn := redis_pool.Get()
+func GetDeviceId(device string, platformId int) (int64, error) {
+	conn := redisPool.Get()
 	defer conn.Close()
-	key := fmt.Sprintf("devices_%s_%d", device_id, platform_id)
-	device_ID, err := redis.Int64(conn.Do("GET", key))
+	key := fmt.Sprintf("devices_%s_%d", device, platformId)
+	deviceId, err := redis.Int64(conn.Do("GET", key))
 	if err != nil {
 		k := "devices_id"
-		device_ID, err = redis.Int64(conn.Do("INCR", k))
+		deviceId, err = redis.Int64(conn.Do("INCR", k))
 		if err != nil {
 			return 0, err
 		}
-		_, err = conn.Do("SET", key, device_ID)
+		_, err = conn.Do("SET", key, deviceId)
 		if err != nil {
 			return 0, err
 		}
 	}
-	return device_ID, err
+	return deviceId, err
 }

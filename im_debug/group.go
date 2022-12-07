@@ -45,7 +45,7 @@ func (group *Group) cloneMembers() map[int64]int64 {
 	return n
 }
 
-//修改成员，在副本修改，避免读取时的lock
+// AddMember 修改成员，在副本修改，避免读取时的lock
 func (group *Group) AddMember(uid int64, timestamp int) {
 	group.mutex.Lock()
 	defer group.mutex.Unlock()
@@ -123,7 +123,7 @@ func CreateGroup(db *sql.DB, appid int64, master int64, name string, super int8)
 	return gid
 }
 
-func DeleteGroup(db *sql.DB, group_id int64) bool {
+func DeleteGroup(db *sql.DB, groupId int64) bool {
 	var stmt1, stmt2 *sql.Stmt
 
 	tx, err := db.Begin()
@@ -138,7 +138,7 @@ func DeleteGroup(db *sql.DB, group_id int64) bool {
 		goto ROLLBACK
 	}
 	defer stmt1.Close()
-	_, err = stmt1.Exec(group_id)
+	_, err = stmt1.Exec(groupId)
 	if err != nil {
 		log.Info("error:", err)
 		goto ROLLBACK
@@ -150,7 +150,7 @@ func DeleteGroup(db *sql.DB, group_id int64) bool {
 		goto ROLLBACK
 	}
 	defer stmt2.Close()
-	_, err = stmt2.Exec(group_id)
+	_, err = stmt2.Exec(groupId)
 	if err != nil {
 		log.Info("error:", err)
 		goto ROLLBACK
@@ -196,7 +196,7 @@ func LoadAllGroup(db *sql.DB) (map[int64]*Group, error) {
 	return groups, nil
 }
 
-func LoadGroupMember(db *sql.DB, group_id int64) (map[int64]int64, error) {
+func LoadGroupMember(db *sql.DB, groupId int64) (map[int64]int64, error) {
 	stmtIns, err := db.Prepare("SELECT uid, timestamp, mute FROM group_member WHERE group_id=?")
 	if err != nil {
 		log.Info("error:", err)
@@ -205,7 +205,7 @@ func LoadGroupMember(db *sql.DB, group_id int64) (map[int64]int64, error) {
 
 	defer stmtIns.Close()
 	members := make(map[int64]int64)
-	rows, err := stmtIns.Query(group_id)
+	rows, err := stmtIns.Query(groupId)
 	for rows.Next() {
 		var uid int64
 		var timestamp int64

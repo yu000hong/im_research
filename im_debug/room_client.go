@@ -13,18 +13,18 @@ func (client *RoomClient) Logout() {
 	if client.room_id > 0 {
 		channel := GetRoomChannel(client.room_id)
 		channel.UnsubscribeRoom(client.appid, client.room_id)
-		route := app_route.FindOrAddRoute(client.appid)
+		route := appRoute.FindOrAddRoute(client.appid)
 		route.RemoveRoomClient(client.room_id, client.Client())
 	}
 }
 
 func (client *RoomClient) HandleMessage(msg *Message) {
 	switch msg.cmd {
-	case MSG_ENTER_ROOM:
+	case MsgEnterRoom:
 		client.HandleEnterRoom(msg.body.(*Room))
-	case MSG_LEAVE_ROOM:
+	case MsgLeaveRoom:
 		client.HandleLeaveRoom(msg.body.(*Room))
-	case MSG_ROOM_IM:
+	case MsgRoomIm:
 		client.HandleRoomIM(msg.body.(*RoomMessage), msg.seq)
 	}
 }
@@ -40,7 +40,7 @@ func (client *RoomClient) HandleEnterRoom(room *Room) {
 	if room_id == 0 || client.room_id == room_id {
 		return
 	}
-	route := app_route.FindOrAddRoute(client.appid)
+	route := appRoute.FindOrAddRoute(client.appid)
 	if client.room_id > 0 {
 		channel := GetRoomChannel(client.room_id)
 		channel.UnsubscribeRoom(client.appid, client.room_id)
@@ -74,7 +74,7 @@ func (client *RoomClient) HandleLeaveRoom(room *Room) {
 		return
 	}
 
-	route := app_route.FindOrAddRoute(client.appid)
+	route := appRoute.FindOrAddRoute(client.appid)
 	route.RemoveRoomClient(client.room_id, client.Client())
 	channel := GetRoomChannel(client.room_id)
 	channel.UnsubscribeRoom(client.appid, client.room_id)
@@ -98,8 +98,8 @@ func (client *RoomClient) HandleRoomIM(room_im *RoomMessage, seq int) {
 		return
 	}
 
-	m := &Message{cmd: MSG_ROOM_IM, body: room_im}
-	route := app_route.FindOrAddRoute(client.appid)
+	m := &Message{cmd: MsgRoomIm, body: room_im}
+	route := appRoute.FindOrAddRoute(client.appid)
 	clients := route.FindRoomClientSet(room_id)
 	for c, _ := range clients {
 		if c == client.Client() {
@@ -108,9 +108,9 @@ func (client *RoomClient) HandleRoomIM(room_im *RoomMessage, seq int) {
 		c.EnqueueNonBlockMessage(m)
 	}
 
-	amsg := &AppMessage{appid: client.appid, receiver: room_id, msg: m}
+	amsg := &AppMessage{appid: client.appid, receiver: room_id, message: m}
 	channel := GetRoomChannel(client.room_id)
 	channel.PublishRoom(amsg)
 
-	client.wt <- &Message{cmd: MSG_ACK, body: &MessageACK{int32(seq)}}
+	client.wt <- &Message{cmd: MsgAck, body: &MessageACK{int32(seq)}}
 }
