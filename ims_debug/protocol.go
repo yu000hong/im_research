@@ -8,6 +8,7 @@ import "errors"
 import "encoding/hex"
 
 //平台号
+
 const PLATFORM_IOS = 1
 const PLATFORM_ANDROID = 2
 const PLATFORM_WEB = 3
@@ -37,8 +38,8 @@ func ReadHeader(buff []byte) (int, int, int, int, int) {
 	var length int32
 	var seq int32
 	buffer := bytes.NewBuffer(buff)
-	binary.Read(buffer, binary.BigEndian, &length)
-	binary.Read(buffer, binary.BigEndian, &seq)
+	_ = binary.Read(buffer, binary.BigEndian, &length)
+	_ = binary.Read(buffer, binary.BigEndian, &seq)
 	cmd, _ := buffer.ReadByte()
 	version, _ := buffer.ReadByte()
 	flag, _ := buffer.ReadByte()
@@ -67,7 +68,7 @@ func SendMessage(conn io.Writer, msg *Message) error {
 	return nil
 }
 
-func ReceiveLimitMessage(conn io.Reader, limit_size int, external bool) *Message {
+func ReceiveLimitMessage(conn io.Reader, limitSize int, external bool) *Message {
 	buff := make([]byte, 12)
 	_, err := io.ReadFull(conn, buff)
 	if err != nil {
@@ -76,7 +77,7 @@ func ReceiveLimitMessage(conn io.Reader, limit_size int, external bool) *Message
 	}
 
 	length, seq, cmd, version, flag := ReadHeader(buff)
-	if length < 0 || length >= limit_size {
+	if length < 0 || length >= limitSize {
 		log.Info("invalid len:", length)
 		return nil
 	}
