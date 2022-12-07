@@ -15,25 +15,25 @@ const MSG_UNSUBSCRIBE_ROOM = 137
 const MSG_PUBLISH_ROOM = 138
 
 func init() {
-	message_creators[MSG_SUBSCRIBE] = func() IMessage { return new(SubscribeMessage) }
-	message_creators[MSG_UNSUBSCRIBE] = func() IMessage { return new(AppUserID) }
-	message_creators[MSG_PUBLISH] = func() IMessage { return new(AppMessage) }
+	messageCreators[MSG_SUBSCRIBE] = func() IMessage { return new(SubscribeMessage) }
+	messageCreators[MSG_UNSUBSCRIBE] = func() IMessage { return new(AppUserID) }
+	messageCreators[MSG_PUBLISH] = func() IMessage { return new(AppMessage) }
 
-	message_creators[MSG_PUBLISH_GROUP] = func() IMessage { return new(AppMessage) }
+	messageCreators[MSG_PUBLISH_GROUP] = func() IMessage { return new(AppMessage) }
 
-	message_creators[MSG_SUBSCRIBE_ROOM] = func() IMessage { return new(AppRoomID) }
-	message_creators[MSG_UNSUBSCRIBE_ROOM] = func() IMessage { return new(AppRoomID) }
-	message_creators[MSG_PUBLISH_ROOM] = func() IMessage { return new(AppMessage) }
+	messageCreators[MSG_SUBSCRIBE_ROOM] = func() IMessage { return new(AppRoomID) }
+	messageCreators[MSG_UNSUBSCRIBE_ROOM] = func() IMessage { return new(AppRoomID) }
+	messageCreators[MSG_PUBLISH_ROOM] = func() IMessage { return new(AppMessage) }
 
-	message_descriptions[MSG_SUBSCRIBE] = "MSG_SUBSCRIBE"
-	message_descriptions[MSG_UNSUBSCRIBE] = "MSG_UNSUBSCRIBE"
-	message_descriptions[MSG_PUBLISH] = "MSG_PUBLISH"
+	messageDescriptions[MSG_SUBSCRIBE] = "MSG_SUBSCRIBE"
+	messageDescriptions[MSG_UNSUBSCRIBE] = "MSG_UNSUBSCRIBE"
+	messageDescriptions[MSG_PUBLISH] = "MSG_PUBLISH"
 
-	message_descriptions[MSG_PUBLISH_GROUP] = "MSG_PUBLISH_GROUP"
+	messageDescriptions[MSG_PUBLISH_GROUP] = "MSG_PUBLISH_GROUP"
 
-	message_descriptions[MSG_SUBSCRIBE_ROOM] = "MSG_SUBSCRIBE_ROOM"
-	message_descriptions[MSG_UNSUBSCRIBE_ROOM] = "MSG_UNSUBSCRIBE_ROOM"
-	message_descriptions[MSG_PUBLISH_ROOM] = "MSG_PUBLISH_ROOM"
+	messageDescriptions[MSG_SUBSCRIBE_ROOM] = "MSG_SUBSCRIBE_ROOM"
+	messageDescriptions[MSG_UNSUBSCRIBE_ROOM] = "MSG_UNSUBSCRIBE_ROOM"
+	messageDescriptions[MSG_PUBLISH_ROOM] = "MSG_PUBLISH_ROOM"
 }
 
 type AppMessage struct {

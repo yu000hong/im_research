@@ -6,27 +6,27 @@ import "net/url"
 import "strconv"
 import log "github.com/golang/glog"
 
-func WriteHttpObj(data map[string]interface{}, w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/json")
+func WriteHttpObj(data map[string]interface{}, resp http.ResponseWriter) {
+	resp.Header().Set("Content-Type", "application/json")
 	obj := make(map[string]interface{})
 	obj["data"] = data
-	b, _ := json.Marshal(obj)
-	w.Write(b)
+	body, _ := json.Marshal(obj)
+	_, _ = resp.Write(body)
 }
 
-func WriteHttpError(status int, err string, w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/json")
+func WriteHttpError(status int, err string, resp http.ResponseWriter) {
+	resp.Header().Set("Content-Type", "application/json")
 	obj := make(map[string]interface{})
 	meta := make(map[string]interface{})
 	meta["code"] = status
 	meta["message"] = err
 	obj["meta"] = meta
-	b, _ := json.Marshal(obj)
-	w.WriteHeader(status)
-	w.Write(b)
+	body, _ := json.Marshal(obj)
+	resp.WriteHeader(status)
+	_, _ = resp.Write(body)
 }
 
-//获取当前所有在线的用户
+// GetOnlineClients 获取当前所有在线的用户
 func GetOnlineClients(w http.ResponseWriter, req *http.Request) {
 	clients := GetClientSet()
 
@@ -37,8 +37,8 @@ func GetOnlineClients(w http.ResponseWriter, req *http.Request) {
 
 	r := make(map[int64]IntSet)
 	for c := range clients {
-		app_users := c.app_route.GetUsers()
-		for appid, users := range app_users {
+		appUsers := c.appRoute.GetUsers()
+		for appid, users := range appUsers {
 			if _, ok := r[appid]; !ok {
 				r[appid] = NewIntSet()
 			}
@@ -73,7 +73,7 @@ func GetOnlineClients(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-//获取单个用户在线状态
+// GetOnlineStatus 获取单个用户在线状态
 func GetOnlineStatus(w http.ResponseWriter, req *http.Request) {
 	log.Info("get user online status")
 	m, _ := url.ParseQuery(req.URL.RawQuery)

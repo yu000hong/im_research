@@ -4,17 +4,15 @@ import "net"
 import log "github.com/golang/glog"
 
 type Push struct {
-	queue_name string
-	content    []byte
+	queueName string
+	content   []byte
 }
 
 type Client struct {
-	wt chan *Message
-
-	pwt chan *Push
-
-	conn      *net.TCPConn
-	app_route *AppRoute
+	wt       chan *Message
+	pwt      chan *Push
+	conn     *net.TCPConn
+	appRoute *AppRoute
 }
 
 func NewClient(conn *net.TCPConn) *Client {
@@ -22,21 +20,21 @@ func NewClient(conn *net.TCPConn) *Client {
 	client.conn = conn
 	client.pwt = make(chan *Push, 10000)
 	client.wt = make(chan *Message, 10)
-	client.app_route = NewAppRoute()
+	client.appRoute = NewAppRoute()
 	return client
 }
 
 func (client *Client) ContainAppUserID(id *AppUserID) bool {
-	route := client.app_route.FindRoute(id.appid)
+	route := client.appRoute.FindRoute(id.appid)
 	if route == nil {
 		return false
 	}
 
-	return route.ContainUserID(id.uid)
+	return route.ContainUid(id.uid)
 }
 
 func (client *Client) IsAppUserOnline(id *AppUserID) bool {
-	route := client.app_route.FindRoute(id.appid)
+	route := client.appRoute.FindRoute(id.appid)
 	if route == nil {
 		return false
 	}
@@ -45,12 +43,12 @@ func (client *Client) IsAppUserOnline(id *AppUserID) bool {
 }
 
 func (client *Client) ContainAppRoomID(id *AppRoomID) bool {
-	route := client.app_route.FindRoute(id.appid)
+	route := client.appRoute.FindRoute(id.appid)
 	if route == nil {
 		return false
 	}
 
-	return route.ContainRoomID(id.room_id)
+	return route.ContainRoomId(id.room_id)
 }
 
 func (client *Client) Read() {
@@ -91,15 +89,15 @@ func (client *Client) HandleMessage(msg *Message) {
 
 func (client *Client) HandleSubscribe(id *SubscribeMessage) {
 	log.Infof("subscribe appid:%d uid:%d online:%d", id.appid, id.uid, id.online)
-	route := client.app_route.FindOrAddRoute(id.appid)
+	route := client.appRoute.FindOrAddRoute(id.appid)
 	on := id.online != 0
-	route.AddUserID(id.uid, on)
+	route.AddUser(id.uid, on)
 }
 
 func (client *Client) HandleUnsubscribe(id *AppUserID) {
 	log.Infof("unsubscribe appid:%d uid:%d", id.appid, id.uid)
-	route := client.app_route.FindOrAddRoute(id.appid)
-	route.RemoveUserID(id.uid)
+	route := client.appRoute.FindOrAddRoute(id.appid)
+	route.RemoveUser(id.uid)
 }
 
 func (client *Client) HandlePublishGroup(amsg *AppMessage) {
@@ -194,14 +192,14 @@ func (client *Client) HandlePublish(amsg *AppMessage) {
 
 func (client *Client) HandleSubscribeRoom(id *AppRoomID) {
 	log.Infof("subscribe appid:%d room id:%d", id.appid, id.room_id)
-	route := client.app_route.FindOrAddRoute(id.appid)
-	route.AddRoomID(id.room_id)
+	route := client.appRoute.FindOrAddRoute(id.appid)
+	route.AddRoom(id.room_id)
 }
 
 func (client *Client) HandleUnsubscribeRoom(id *AppRoomID) {
 	log.Infof("unsubscribe appid:%d room id:%d", id.appid, id.room_id)
-	route := client.app_route.FindOrAddRoute(id.appid)
-	route.RemoveRoomID(id.room_id)
+	route := client.appRoute.FindOrAddRoute(id.appid)
+	route.RemoveRoom(id.room_id)
 }
 
 func (client *Client) HandlePublishRoom(amsg *AppMessage) {

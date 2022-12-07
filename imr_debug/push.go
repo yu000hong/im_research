@@ -107,7 +107,7 @@ func (client *Client) PushQueue(ps []*Push) {
 	begin := time.Now()
 	conn.Send("MULTI")
 	for _, p := range ps {
-		conn.Send("RPUSH", p.queue_name, p.content)
+		conn.Send("RPUSH", p.queueName, p.content)
 	}
 	_, err := conn.Do("EXEC")
 
