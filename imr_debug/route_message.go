@@ -3,101 +3,104 @@ package main
 import "bytes"
 import "encoding/binary"
 
-//路由服务器消息
-const MSG_SUBSCRIBE = 130
-const MSG_UNSUBSCRIBE = 131
-const MSG_PUBLISH = 132
+const MsgSubscribe = 130
+const MsgUnsubscribe = 131
+const MsgPublish = 132
 
-const MSG_PUBLISH_GROUP = 135
+const MsgGroupPublish = 135
 
-const MSG_SUBSCRIBE_ROOM = 136
-const MSG_UNSUBSCRIBE_ROOM = 137
-const MSG_PUBLISH_ROOM = 138
+const MsgRoomSubscribe = 136
+const MsgRoomUnsubscribe = 137
+const MsgRoomPublish = 138
 
 func init() {
-	messageCreators[MSG_SUBSCRIBE] = func() IMessage { return new(SubscribeMessage) }
-	messageCreators[MSG_UNSUBSCRIBE] = func() IMessage { return new(AppUser) }
-	messageCreators[MSG_PUBLISH] = func() IMessage { return new(AppMessage) }
+	messageCreators[MsgSubscribe] = func() IMessage { return new(SubscribeMessage) }
+	messageCreators[MsgUnsubscribe] = func() IMessage { return new(AppUser) }
+	messageCreators[MsgPublish] = func() IMessage { return new(AppMessage) }
 
-	messageCreators[MSG_PUBLISH_GROUP] = func() IMessage { return new(AppMessage) }
+	messageCreators[MsgGroupPublish] = func() IMessage { return new(AppMessage) }
 
-	messageCreators[MSG_SUBSCRIBE_ROOM] = func() IMessage { return new(AppRoom) }
-	messageCreators[MSG_UNSUBSCRIBE_ROOM] = func() IMessage { return new(AppRoom) }
-	messageCreators[MSG_PUBLISH_ROOM] = func() IMessage { return new(AppMessage) }
+	messageCreators[MsgRoomSubscribe] = func() IMessage { return new(AppRoom) }
+	messageCreators[MsgRoomUnsubscribe] = func() IMessage { return new(AppRoom) }
+	messageCreators[MsgRoomPublish] = func() IMessage { return new(AppMessage) }
 
-	messageDescriptions[MSG_SUBSCRIBE] = "MSG_SUBSCRIBE"
-	messageDescriptions[MSG_UNSUBSCRIBE] = "MSG_UNSUBSCRIBE"
-	messageDescriptions[MSG_PUBLISH] = "MSG_PUBLISH"
+	messageDescriptions[MsgSubscribe] = "MSG_SUBSCRIBE"
+	messageDescriptions[MsgUnsubscribe] = "MSG_UNSUBSCRIBE"
+	messageDescriptions[MsgPublish] = "MSG_PUBLISH"
 
-	messageDescriptions[MSG_PUBLISH_GROUP] = "MSG_PUBLISH_GROUP"
+	messageDescriptions[MsgGroupPublish] = "MSG_GROUP_PUBLISH"
 
-	messageDescriptions[MSG_SUBSCRIBE_ROOM] = "MSG_SUBSCRIBE_ROOM"
-	messageDescriptions[MSG_UNSUBSCRIBE_ROOM] = "MSG_UNSUBSCRIBE_ROOM"
-	messageDescriptions[MSG_PUBLISH_ROOM] = "MSG_PUBLISH_ROOM"
+	messageDescriptions[MsgRoomSubscribe] = "MSG_ROOM_SUBSCRIBE"
+	messageDescriptions[MsgRoomUnsubscribe] = "MSG_ROOM_UNSUBSCRIBE"
+	messageDescriptions[MsgRoomPublish] = "MSG_ROOM_PUBLISH"
 }
+
+//region AppMessage
 
 type AppMessage struct {
 	appid     int64
 	receiver  int64
 	msgid     int64
-	device_id int64
+	deviceId  int64
 	timestamp int64 //纳秒,测试消息从im->imr->im的时间
 	msg       *Message
 }
 
-func (amsg *AppMessage) ToData() []byte {
-	if amsg.msg == nil {
+func (message *AppMessage) ToData() []byte {
+	if message.msg == nil {
 		return nil
 	}
 
 	buffer := new(bytes.Buffer)
-	binary.Write(buffer, binary.BigEndian, amsg.appid)
-	binary.Write(buffer, binary.BigEndian, amsg.receiver)
-	binary.Write(buffer, binary.BigEndian, amsg.msgid)
-	binary.Write(buffer, binary.BigEndian, amsg.device_id)
-	binary.Write(buffer, binary.BigEndian, amsg.timestamp)
+	_ = binary.Write(buffer, binary.BigEndian, message.appid)
+	_ = binary.Write(buffer, binary.BigEndian, message.receiver)
+	_ = binary.Write(buffer, binary.BigEndian, message.msgid)
+	_ = binary.Write(buffer, binary.BigEndian, message.deviceId)
+	_ = binary.Write(buffer, binary.BigEndian, message.timestamp)
 	mbuffer := new(bytes.Buffer)
-	WriteMessage(mbuffer, amsg.msg)
-	msg_buf := mbuffer.Bytes()
-	var l int16 = int16(len(msg_buf))
-	binary.Write(buffer, binary.BigEndian, l)
-	buffer.Write(msg_buf)
-
-	buf := buffer.Bytes()
-	return buf
+	WriteMessage(mbuffer, message.msg)
+	msgBuf := mbuffer.Bytes()
+	var l = int16(len(msgBuf))
+	_ = binary.Write(buffer, binary.BigEndian, l)
+	buffer.Write(msgBuf)
+	return buffer.Bytes()
 }
 
-func (amsg *AppMessage) FromData(buff []byte) bool {
+func (message *AppMessage) FromData(buff []byte) bool {
 	if len(buff) < 42 {
 		return false
 	}
 
 	buffer := bytes.NewBuffer(buff)
-	binary.Read(buffer, binary.BigEndian, &amsg.appid)
-	binary.Read(buffer, binary.BigEndian, &amsg.receiver)
-	binary.Read(buffer, binary.BigEndian, &amsg.msgid)
-	binary.Read(buffer, binary.BigEndian, &amsg.device_id)
-	binary.Read(buffer, binary.BigEndian, &amsg.timestamp)
+	_ = binary.Read(buffer, binary.BigEndian, &message.appid)
+	_ = binary.Read(buffer, binary.BigEndian, &message.receiver)
+	_ = binary.Read(buffer, binary.BigEndian, &message.msgid)
+	_ = binary.Read(buffer, binary.BigEndian, &message.deviceId)
+	_ = binary.Read(buffer, binary.BigEndian, &message.timestamp)
 
 	var l int16
-	binary.Read(buffer, binary.BigEndian, &l)
+	_ = binary.Read(buffer, binary.BigEndian, &l)
 	if int(l) > buffer.Len() || l < 0 {
 		return false
 	}
 
-	msg_buf := make([]byte, l)
-	buffer.Read(msg_buf)
+	msgBuf := make([]byte, l)
+	_, _ = buffer.Read(msgBuf)
 
-	mbuffer := bytes.NewBuffer(msg_buf)
-	//recusive
+	mbuffer := bytes.NewBuffer(msgBuf)
+	//recursive
 	msg := ReceiveMessage(mbuffer)
 	if msg == nil {
 		return false
 	}
-	amsg.msg = msg
+	message.msg = msg
 
 	return true
 }
+
+//endregion
+
+//region SubscribeMessage
 
 type SubscribeMessage struct {
 	appid  int64
@@ -107,9 +110,9 @@ type SubscribeMessage struct {
 
 func (sub *SubscribeMessage) ToData() []byte {
 	buffer := new(bytes.Buffer)
-	binary.Write(buffer, binary.BigEndian, sub.appid)
-	binary.Write(buffer, binary.BigEndian, sub.uid)
-	binary.Write(buffer, binary.BigEndian, sub.online)
+	_ = binary.Write(buffer, binary.BigEndian, sub.appid)
+	_ = binary.Write(buffer, binary.BigEndian, sub.uid)
+	_ = binary.Write(buffer, binary.BigEndian, sub.online)
 	buf := buffer.Bytes()
 	return buf
 }
@@ -120,9 +123,11 @@ func (sub *SubscribeMessage) FromData(buff []byte) bool {
 	}
 
 	buffer := bytes.NewBuffer(buff)
-	binary.Read(buffer, binary.BigEndian, &sub.appid)
-	binary.Read(buffer, binary.BigEndian, &sub.uid)
-	binary.Read(buffer, binary.BigEndian, &sub.online)
+	_ = binary.Read(buffer, binary.BigEndian, &sub.appid)
+	_ = binary.Read(buffer, binary.BigEndian, &sub.uid)
+	_ = binary.Read(buffer, binary.BigEndian, &sub.online)
 
 	return true
 }
+
+//endregion

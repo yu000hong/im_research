@@ -65,19 +65,19 @@ func (client *Client) Read() {
 func (client *Client) HandleMessage(msg *Message) {
 	log.Info("msg cmd:", Command(msg.cmd))
 	switch msg.cmd {
-	case MSG_SUBSCRIBE:
+	case MsgSubscribe:
 		client.HandleSubscribe(msg.body.(*SubscribeMessage))
-	case MSG_UNSUBSCRIBE:
+	case MsgUnsubscribe:
 		client.HandleUnsubscribe(msg.body.(*AppUser))
-	case MSG_PUBLISH:
+	case MsgPublish:
 		client.HandlePublish(msg.body.(*AppMessage))
-	case MSG_PUBLISH_GROUP:
+	case MsgGroupPublish:
 		client.HandlePublishGroup(msg.body.(*AppMessage))
-	case MSG_SUBSCRIBE_ROOM:
+	case MsgRoomSubscribe:
 		client.HandleSubscribeRoom(msg.body.(*AppRoom))
-	case MSG_UNSUBSCRIBE_ROOM:
+	case MsgRoomUnsubscribe:
 		client.HandleUnsubscribeRoom(msg.body.(*AppRoom))
-	case MSG_PUBLISH_ROOM:
+	case MsgRoomPublish:
 		client.HandlePublishRoom(msg.body.(*AppMessage))
 	default:
 		log.Warning("unknown message cmd:", msg.cmd)
@@ -102,7 +102,7 @@ func (client *Client) HandlePublishGroup(amsg *AppMessage) {
 	gid := amsg.receiver
 	group := groupManager.FindGroup(gid)
 
-	if group != nil && amsg.msg.cmd == MSG_GROUP_IM {
+	if group != nil && amsg.msg.cmd == MsgGroupIm {
 		msg := amsg.msg
 		members := group.Members()
 		im := msg.body.(*IMMessage)
@@ -118,14 +118,14 @@ func (client *Client) HandlePublishGroup(amsg *AppMessage) {
 	}
 
 	//当前只有MSG_SYNC_GROUP_NOTIFY可以发给终端
-	if amsg.msg.cmd != MSG_SYNC_GROUP_NOTIFY {
+	if amsg.msg.cmd != MsgGroupSyncNotify {
 		return
 	}
 
 	//群发给所有接入服务器
 	s := GetClientSet()
 
-	msg := &Message{cmd: MSG_PUBLISH_GROUP, body: amsg}
+	msg := &Message{cmd: MsgGroupPublish, body: amsg}
 	for c := range s {
 		//不发送给自身
 		if client == c {
@@ -151,16 +151,16 @@ func (client *Client) HandlePublish(amsg *AppMessage) {
 
 	if offline {
 		//用户不在线,推送消息到终端
-		if cmd == MSG_IM {
+		if cmd == MsgIm {
 			client.PublishPeerMessage(amsg.appid, amsg.msg.body.(*IMMessage))
-		} else if cmd == MSG_GROUP_IM {
+		} else if cmd == MsgGroupIm {
 			client.PublishGroupMessage(amsg.appid, []int64{amsg.receiver},
 				amsg.msg.body.(*IMMessage))
-		} else if cmd == MSG_CUSTOMER ||
-			cmd == MSG_CUSTOMER_SUPPORT {
+		} else if cmd == MsgCustomer ||
+			cmd == MsgCustomerSupport {
 			client.PublishCustomerMessage(amsg.appid, amsg.receiver,
 				amsg.msg.body.(*CustomerMessage), amsg.msg.cmd)
-		} else if cmd == MSG_SYSTEM {
+		} else if cmd == MsgSystem {
 			sys := amsg.msg.body.(*SystemMessage)
 			if config.isPushSystem {
 				client.PublishSystemMessage(amsg.appid, amsg.receiver, sys.notification)
@@ -168,16 +168,16 @@ func (client *Client) HandlePublish(amsg *AppMessage) {
 		}
 	}
 
-	if cmd == MSG_IM || cmd == MSG_GROUP_IM ||
-		cmd == MSG_CUSTOMER || cmd == MSG_CUSTOMER_SUPPORT ||
-		cmd == MSG_SYSTEM {
-		if amsg.msg.flag&MESSAGE_FLAG_UNPERSISTENT == 0 {
+	if cmd == MsgIm || cmd == MsgGroupIm ||
+		cmd == MsgCustomer || cmd == MsgCustomerSupport ||
+		cmd == MsgSystem {
+		if amsg.msg.flag&MessageFlagUnpersistent == 0 {
 			//持久化的消息不主动推送消息到客户端
 			return
 		}
 	}
 
-	msg := &Message{cmd: MSG_PUBLISH, body: amsg}
+	msg := &Message{cmd: MsgPublish, body: amsg}
 	for c := range s {
 		//不发送给自身
 		if client == c {
@@ -204,7 +204,7 @@ func (client *Client) HandlePublishRoom(amsg *AppMessage) {
 	receiver := &AppRoom{appid: amsg.appid, roomId: amsg.receiver}
 	s := FindRoomClientSet(receiver)
 
-	msg := &Message{cmd: MSG_PUBLISH_ROOM, body: amsg}
+	msg := &Message{cmd: MsgRoomPublish, body: amsg}
 	for c := range s {
 		//不发送给自身
 		if client == c {

@@ -267,13 +267,13 @@ func (groupManager *GroupManager) parseAction(data string) (bool, int64, int64, 
 }
 
 func (groupManager *GroupManager) handleAction(data string, channel string) {
-	r, prev_id, action_id, content := groupManager.parseAction(data)
+	r, prevId, actionId, content := groupManager.parseAction(data)
 	if r {
-		log.Info("group action:", prev_id, action_id, groupManager.actionId, " ", channel)
-		if groupManager.actionId != prev_id {
+		log.Info("group action:", prevId, actionId, groupManager.actionId, " ", channel)
+		if groupManager.actionId != prevId {
 			//reload later
 			groupManager.dirty = true
-			log.Warning("action nonsequence:", groupManager.actionId, prev_id, action_id)
+			log.Warning("action nonsequence:", groupManager.actionId, prevId, actionId)
 		}
 
 		if channel == "group_create" {
@@ -289,7 +289,7 @@ func (groupManager *GroupManager) handleAction(data string, channel string) {
 		} else if channel == "group_member_mute" {
 			groupManager.HandleMute(content)
 		}
-		groupManager.actionId = action_id
+		groupManager.actionId = actionId
 	}
 }
 

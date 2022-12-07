@@ -51,7 +51,7 @@ func (route *Route) GetUids() IntSet {
 	defer route.mutex.Unlock()
 
 	uids := NewIntSet()
-	for uid, _ := range route.uids {
+	for uid := range route.uids {
 		uids.Add(uid)
 	}
 	return uids

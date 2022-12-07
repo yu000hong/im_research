@@ -12,11 +12,11 @@ import log "github.com/golang/glog"
 import "github.com/gomodule/redigo/redis"
 
 var (
-	VERSION       string
-	BUILD_TIME    string
-	GO_VERSION    string
-	GIT_COMMIT_ID string
-	GIT_BRANCH    string
+	Version     string
+	BuildTime   string
+	GoVersion   string
+	GitCommitId string
+	GitBranch   string
 )
 
 var config *RouteConfig
@@ -59,66 +59,62 @@ func FindClientSet(id *AppUser) ClientSet {
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	s := NewClientSet()
-
-	for c := range clients {
-		if c.ContainAppUser(id) {
-			s.Add(c)
+	clientSet := NewClientSet()
+	for client := range clients {
+		if client.ContainAppUser(id) {
+			clientSet.Add(client)
 		}
 	}
-	return s
+	return clientSet
 }
 
 func FindRoomClientSet(id *AppRoom) ClientSet {
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	s := NewClientSet()
-
-	for c := range clients {
-		if c.ContainAppRoom(id) {
-			s.Add(c)
+	clientSet := NewClientSet()
+	for client := range clients {
+		if client.ContainAppRoom(id) {
+			clientSet.Add(client)
 		}
 	}
-	return s
+	return clientSet
 }
 
 func IsUserOnline(appid, uid int64) bool {
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	id := &AppUser{appid: appid, uid: uid}
-
-	for c := range clients {
-		if c.IsAppUserOnline(id) {
+	user := &AppUser{appid: appid, uid: uid}
+	for client := range clients {
+		if client.IsAppUserOnline(user) {
 			return true
 		}
 	}
 	return false
 }
 
-func handle_client(conn *net.TCPConn) {
-	conn.SetKeepAlive(true)
-	conn.SetKeepAlivePeriod(time.Duration(10 * 60 * time.Second))
+func handleClient(conn *net.TCPConn) {
+	_ = conn.SetKeepAlive(true)
+	_ = conn.SetKeepAlivePeriod(10 * 60 * time.Second)
 	client := NewClient(conn)
 	log.Info("new client:", conn.RemoteAddr())
 	client.Run()
 }
 
-func Listen(f func(*net.TCPConn), listen_addr string) {
-	listen, err := net.Listen("tcp", listen_addr)
+func Listen(f func(*net.TCPConn), listenAddr string) {
+	listen, err := net.Listen("tcp", listenAddr)
 	if err != nil {
 		fmt.Println("初始化失败", err.Error())
 		return
 	}
-	tcp_listener, ok := listen.(*net.TCPListener)
+	tcpListener, ok := listen.(*net.TCPListener)
 	if !ok {
 		fmt.Println("listen error")
 		return
 	}
-
 	for {
-		client, err := tcp_listener.AcceptTCP()
+		client, err := tcpListener.AcceptTCP()
 		if err != nil {
 			return
 		}
@@ -127,7 +123,7 @@ func Listen(f func(*net.TCPConn), listen_addr string) {
 }
 
 func ListenClient() {
-	Listen(handle_client, config.listen)
+	Listen(handleClient, config.listen)
 }
 
 func NewRedisPool(server, password string, db int) *redis.Pool {
@@ -172,7 +168,6 @@ func StartHttpServer(addr string) {
 	http.HandleFunc("/all_online", GetOnlineClients)
 
 	handler := loggingHandler{http.DefaultServeMux}
-
 	err := http.ListenAndServe(addr, handler)
 	if err != nil {
 		log.Fatal("http server err:", err)
@@ -180,13 +175,14 @@ func StartHttpServer(addr string) {
 }
 
 func main() {
-	fmt.Printf("Version:     %s\nBuilt:       %s\nGo version:  %s\nGit branch:  %s\nGit commit:  %s\n", VERSION, BUILD_TIME, GO_VERSION, GIT_BRANCH, GIT_COMMIT_ID)
+	fmt.Printf("Version:     %s\nBuilt:       %s\nGo version:  %s\nGit branch:  %s\nGit commit:  %s\n",
+		Version, BuildTime, GoVersion, GitBranch, GitCommitId)
 
 	rand.Seed(time.Now().UnixNano())
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	flag.Parse()
 	if len(flag.Args()) == 0 {
-		fmt.Println("usage: im config")
+		fmt.Println("usage: imr config")
 		return
 	}
 
