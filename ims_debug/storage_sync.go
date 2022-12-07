@@ -35,7 +35,7 @@ func (client *SyncClient) RunLoop() {
 		msg := &Message{cmd: MSG_STORAGE_SYNC_MESSAGE_BATCH, body: batch}
 		seq = seq + 1
 		msg.seq = seq
-		SendMessage(client.conn, msg)
+		_ = SendMessage(client.conn, msg)
 	}
 
 	master.AddClient(client)
@@ -158,19 +158,19 @@ func (master *Master) Start() {
 
 //endregion
 
-//region Slaver
+//region Slave
 
-type Slaver struct {
+type Slave struct {
 	addr string
 }
 
-func NewSlaver(addr string) *Slaver {
-	s := new(Slaver)
+func NewSlaver(addr string) *Slave {
+	s := new(Slave)
 	s.addr = addr
 	return s
 }
 
-func (slaver *Slaver) RunOnce(conn *net.TCPConn) {
+func (slave *Slave) RunOnce(conn *net.TCPConn) {
 	defer conn.Close()
 
 	seq := 0
@@ -196,41 +196,49 @@ func (slaver *Slaver) RunOnce(conn *net.TCPConn) {
 
 		if msg.cmd == MSG_STORAGE_SYNC_MESSAGE {
 			emsg := msg.body.(*EMessage)
-			storage.SaveSyncMessage(emsg)
+			err := storage.SaveSyncMessage(emsg)
+			if err != nil {
+				log.Error("Error when syncing message, msgid: ", emsg.msgid)
+				return
+			}
 		} else if msg.cmd == MSG_STORAGE_SYNC_MESSAGE_BATCH {
 			mb := msg.body.(*MessageBatch)
-			storage.SaveSyncMessageBatch(mb)
+			err := storage.SaveSyncMessageBatch(mb)
+			if err != nil {
+				log.Error("Error when syncing batch message, firstId-", mb.firstId, ", lastId-", mb.lastId)
+				return
+			}
 		} else {
 			log.Error("unknown message cmd:", Command(msg.cmd))
 		}
 	}
 }
 
-func (slaver *Slaver) Run() {
+func (slave *Slave) Run() {
 	nsleep := 100
 	for {
-		conn, err := net.Dial("tcp", slaver.addr)
+		conn, err := net.Dial("tcp", slave.addr)
 		if err != nil {
 			log.Info("connect master server error:", err)
 			nsleep *= 2
 			if nsleep > 60*1000 {
 				nsleep = 60 * 1000
 			}
-			log.Info("slaver sleep:", nsleep)
+			log.Info("slave sleep:", nsleep)
 			time.Sleep(time.Duration(nsleep) * time.Millisecond)
 			continue
 		}
 		tconn := conn.(*net.TCPConn)
-		tconn.SetKeepAlive(true)
-		tconn.SetKeepAlivePeriod(10 * 60 * time.Second)
-		log.Info("slaver connected with master")
+		_ = tconn.SetKeepAlive(true)
+		_ = tconn.SetKeepAlivePeriod(10 * 60 * time.Second)
+		log.Info("slave connected with master")
 		nsleep = 100
-		slaver.RunOnce(tconn)
+		slave.RunOnce(tconn)
 	}
 }
 
-func (slaver *Slaver) Start() {
-	go slaver.Run()
+func (slave *Slave) Start() {
+	go slave.Run()
 }
 
 //endregion
