@@ -164,7 +164,7 @@ type Slave struct {
 	addr string
 }
 
-func NewSlaver(addr string) *Slave {
+func NewSlave(addr string) *Slave {
 	s := new(Slave)
 	s.addr = addr
 	return s

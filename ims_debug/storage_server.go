@@ -3,7 +3,6 @@ package main
 import "net"
 import "fmt"
 import "time"
-import "sync"
 import "runtime"
 import "flag"
 import "math/rand"
@@ -26,7 +25,6 @@ var (
 var storage *Storage
 var config *StorageConfig
 var master *Master
-var mutex sync.Mutex
 var serverSummary *ServerSummary
 
 func init() {
@@ -55,8 +53,8 @@ func Listen(f func(*net.TCPConn), listenAddr string) {
 }
 
 func handleSyncClient(conn *net.TCPConn) {
-	conn.SetKeepAlive(true)
-	conn.SetKeepAlivePeriod(time.Duration(10 * 60 * time.Second))
+	_ = conn.SetKeepAlive(true)
+	_ = conn.SetKeepAlivePeriod(time.Duration(10 * 60 * time.Second))
 	client := NewSyncClient(conn)
 	client.Run()
 }
@@ -66,7 +64,7 @@ func ListenSyncClient() {
 }
 
 // Signal handler
-func waitSignal() error {
+func waitSignal() {
 	ch := make(chan os.Signal, 1)
 	signal.Notify(
 		ch,
@@ -75,17 +73,16 @@ func waitSignal() error {
 	)
 	for {
 		sig := <-ch
-		fmt.Println("singal:", sig.String())
+		fmt.Println("signal:", sig.String())
 		switch sig {
 		case syscall.SIGTERM, syscall.SIGINT:
 			storage.Flush()
 			storage.SaveIndexFileAndExit()
 		}
 	}
-	return nil // It'll never get here.
 }
 
-//flush storage file
+// FlushLoop flush storage file
 func FlushLoop() {
 	ticker := time.NewTicker(time.Millisecond * 1000)
 	for range ticker.C {
@@ -93,7 +90,7 @@ func FlushLoop() {
 	}
 }
 
-//flush message index
+// FlushIndexLoop flush message index
 func FlushIndexLoop() {
 	//5 min
 	ticker := time.NewTicker(time.Second * 60 * 5)
@@ -115,13 +112,13 @@ func NewRedisPool(server, password string, db int) *redis.Pool {
 			}
 			if len(password) > 0 {
 				if _, err := c.Do("AUTH", password); err != nil {
-					c.Close()
+					_ = c.Close()
 					return nil, err
 				}
 			}
 			if db > 0 && db < 16 {
 				if _, err := c.Do("SELECT", db); err != nil {
-					c.Close()
+					_ = c.Close()
 					return nil, err
 				}
 			}
@@ -192,8 +189,8 @@ func main() {
 	master = NewMaster()
 	master.Start()
 	if len(config.masterAddress) > 0 {
-		slaver := NewSlaver(config.masterAddress)
-		slaver.Start()
+		slave := NewSlave(config.masterAddress)
+		slave.Start()
 	}
 
 	//刷新storage file
