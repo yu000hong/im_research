@@ -39,14 +39,14 @@ func (client *PeerClient) Logout() {
 	}
 }
 
-func (client *PeerClient) HandleSync(sync_key *SyncKey) {
+func (client *PeerClient) HandleSync(syncKey *SyncKey) {
 	if client.uid == 0 {
 		return
 	}
-	last_id := sync_key.syncKey
+	lastId := syncKey.syncKey
 
-	if last_id == 0 {
-		last_id = GetSyncKey(client.appid, client.uid)
+	if lastId == 0 {
+		lastId = GetSyncKey(client.appid, client.uid)
 	}
 
 	rpc := GetStorageRPCClient(client.uid)
@@ -55,10 +55,10 @@ func (client *PeerClient) HandleSync(sync_key *SyncKey) {
 		Appid:     client.appid,
 		Uid:       client.uid,
 		DeviceId:  client.deviceId,
-		LastMsgid: last_id,
+		LastMsgid: lastId,
 	}
 
-	log.Infof("syncing message:%d %d %d %d", client.appid, client.uid, client.deviceId, last_id)
+	log.Infof("syncing message:%d %d %d %d", client.appid, client.uid, client.deviceId, lastId)
 
 	resp, err := rpc.Call("SyncMessage", s)
 	if err != nil {
@@ -72,7 +72,7 @@ func (client *PeerClient) HandleSync(sync_key *SyncKey) {
 
 	msgs := make([]*Message, 0, len(messages)+2)
 
-	sk := &SyncKey{last_id}
+	sk := &SyncKey{lastId}
 	msgs = append(msgs, &Message{cmd: MsgSyncBegin, body: sk})
 
 	for i := len(messages) - 1; i >= 0; i-- {
@@ -101,9 +101,9 @@ func (client *PeerClient) HandleSync(sync_key *SyncKey) {
 		msgs = append(msgs, m)
 	}
 
-	if ph.LastMsgid < last_id && ph.LastMsgid > 0 {
+	if ph.LastMsgid < lastId && ph.LastMsgid > 0 {
 		sk.syncKey = ph.LastMsgid
-		log.Warningf("client last id:%d server last id:%d", last_id, ph.LastMsgid)
+		log.Warningf("client last id:%d server last id:%d", lastId, ph.LastMsgid)
 	}
 
 	msgs = append(msgs, &Message{cmd: MsgSyncEnd, body: sk})
@@ -111,18 +111,18 @@ func (client *PeerClient) HandleSync(sync_key *SyncKey) {
 	client.EnqueueMessages(msgs)
 }
 
-func (client *PeerClient) HandleSyncKey(sync_key *SyncKey) {
+func (client *PeerClient) HandleSyncKey(syncKey *SyncKey) {
 	if client.uid == 0 {
 		return
 	}
 
-	last_id := sync_key.syncKey
-	log.Infof("sync key:%d %d %d %d", client.appid, client.uid, client.deviceId, last_id)
-	if last_id > 0 {
+	lastId := syncKey.syncKey
+	log.Infof("sync key:%d %d %d %d", client.appid, client.uid, client.deviceId, lastId)
+	if lastId > 0 {
 		s := &SyncHistory{
 			Appid:     client.appid,
 			Uid:       client.uid,
-			LastMsgid: last_id,
+			LastMsgid: lastId,
 		}
 		syncC <- s
 	}

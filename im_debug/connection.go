@@ -19,11 +19,11 @@ type Connection struct {
 	notificationOn bool  //桌面在线时是否通知手机端
 	online         bool
 
-	syncCount int64 //点对点消息同步计数，用于判断是否是首次同步
-	tc        int32 //write channel timeout count
-	wt        chan *Message
-	lwt       chan int
-	pwt       chan []*Message //离线消息
+	syncCount    int64 //点对点消息同步计数，用于判断是否是首次同步
+	timeoutCount int32 //write channel timeout count
+	wt           chan *Message
+	lwt          chan int
+	pwt          chan []*Message //离线消息
 
 	version int //客户端协议版本号
 
@@ -134,10 +134,10 @@ func (client *Connection) EnqueueNonBlockMessage(msg *Message) bool {
 		return false
 	}
 
-	tc := atomic.LoadInt32(&client.tc)
+	tc := atomic.LoadInt32(&client.timeoutCount)
 	if tc > 0 {
 		log.Infof("can't send message to blocked connection:%d", client.uid)
-		atomic.AddInt32(&client.tc, 1)
+		atomic.AddInt32(&client.timeoutCount, 1)
 		return false
 	}
 
@@ -170,17 +170,17 @@ func (client *Connection) EnqueueMessage(msg *Message) bool {
 		return false
 	}
 
-	tc := atomic.LoadInt32(&client.tc)
+	tc := atomic.LoadInt32(&client.timeoutCount)
 	if tc > 0 {
 		log.Infof("can't send message to blocked connection:%d", client.uid)
-		atomic.AddInt32(&client.tc, 1)
+		atomic.AddInt32(&client.timeoutCount, 1)
 		return false
 	}
 	select {
 	case client.wt <- msg:
 		return true
 	case <-time.After(60 * time.Second):
-		atomic.AddInt32(&client.tc, 1)
+		atomic.AddInt32(&client.timeoutCount, 1)
 		log.Infof("send message to wt timed out:%d", client.uid)
 		return false
 	}
@@ -193,17 +193,17 @@ func (client *Connection) EnqueueMessages(messages []*Message) bool {
 		return false
 	}
 
-	tc := atomic.LoadInt32(&client.tc)
+	tc := atomic.LoadInt32(&client.timeoutCount)
 	if tc > 0 {
 		log.Infof("can't send messages to blocked connection:%d", client.uid)
-		atomic.AddInt32(&client.tc, 1)
+		atomic.AddInt32(&client.timeoutCount, 1)
 		return false
 	}
 	select {
 	case client.pwt <- messages:
 		return true
 	case <-time.After(60 * time.Second):
-		atomic.AddInt32(&client.tc, 1)
+		atomic.AddInt32(&client.timeoutCount, 1)
 		log.Infof("send messages to pwt timed out:%d", client.uid)
 		return false
 	}
@@ -223,7 +223,7 @@ func (client *Connection) read() *Message {
 // 根据连接类型发送消息
 func (client *Connection) send(msg *Message) {
 	if conn, ok := client.conn.(net.Conn); ok {
-		tc := atomic.LoadInt32(&client.tc)
+		tc := atomic.LoadInt32(&client.timeoutCount)
 		if tc > 0 {
 			log.Info("can't write data to blocked socket")
 			return
@@ -231,7 +231,7 @@ func (client *Connection) send(msg *Message) {
 		_ = conn.SetWriteDeadline(time.Now().Add(60 * time.Second))
 		err := SendMessage(conn, msg)
 		if err != nil {
-			atomic.AddInt32(&client.tc, 1)
+			atomic.AddInt32(&client.timeoutCount, 1)
 			log.Info("send msg:", Command(msg.cmd), " tcp err:", err)
 		}
 	} else if conn, ok := client.conn.(engineio.Conn); ok {

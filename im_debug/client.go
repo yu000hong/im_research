@@ -46,7 +46,7 @@ func NewClient(conn interface{}) *Client {
 
 func (client *Client) Read() {
 	for {
-		tc := atomic.LoadInt32(&client.tc)
+		tc := atomic.LoadInt32(&client.timeoutCount)
 		if tc > 0 {
 			log.Infof("quit read goroutine, client:%d write goroutine blocked", client.uid)
 			client.HandleClientClosed()
