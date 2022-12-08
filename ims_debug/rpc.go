@@ -13,7 +13,7 @@ func SyncMessage(addr string, syncKey *SyncHistory) *PeerHistoryMessage {
 		hm.DeviceId = emsg.deviceId
 		hm.Cmd = int32(emsg.msg.cmd)
 
-		emsg.msg.version = DEFAULT_VERSION
+		emsg.msg.version = DefaultVersion
 		hm.Raw = emsg.msg.ToData()
 		historyMessages = append(historyMessages, hm)
 	}
@@ -32,7 +32,7 @@ func SyncGroupMessage(addr string, syncKey *SyncGroupHistory) *GroupHistoryMessa
 		hm.DeviceId = emsg.deviceId
 		hm.Cmd = int32(emsg.msg.cmd)
 
-		emsg.msg.version = DEFAULT_VERSION
+		emsg.msg.version = DefaultVersion
 		hm.Raw = emsg.msg.ToData()
 		historyMessages = append(historyMessages, hm)
 	}
@@ -43,7 +43,7 @@ func SyncGroupMessage(addr string, syncKey *SyncGroupHistory) *GroupHistoryMessa
 func SavePeerMessage(addr string, m *PeerMessage) (int64, error) {
 	atomic.AddInt64(&serverSummary.requestCount, 1)
 	atomic.AddInt64(&serverSummary.peerMessageCount, 1)
-	msg := &Message{cmd: int(m.Cmd), version: DEFAULT_VERSION}
+	msg := &Message{cmd: int(m.Cmd), version: DefaultVersion}
 	msg.FromData(m.Raw)
 	msgid := storage.SavePeerMessage(m.Appid, m.Uid, m.DeviceId, msg)
 	return msgid, nil
@@ -52,7 +52,7 @@ func SavePeerMessage(addr string, m *PeerMessage) (int64, error) {
 func SaveGroupMessage(addr string, m *GroupMessage) (int64, error) {
 	atomic.AddInt64(&serverSummary.requestCount, 1)
 	atomic.AddInt64(&serverSummary.groupMessageCount, 1)
-	msg := &Message{cmd: int(m.Cmd), version: DEFAULT_VERSION}
+	msg := &Message{cmd: int(m.Cmd), version: DefaultVersion}
 	msg.FromData(m.Raw)
 	msgid := storage.SaveGroupMessage(m.Appid, m.GroupId, m.DeviceId, msg)
 	return msgid, nil
@@ -75,7 +75,7 @@ func GetLatestMessage(addr string, r *HistoryRequest) []*HistoryMessage {
 		hm.DeviceId = emsg.deviceId
 		hm.Cmd = int32(emsg.msg.cmd)
 
-		emsg.msg.version = DEFAULT_VERSION
+		emsg.msg.version = DefaultVersion
 		hm.Raw = emsg.msg.ToData()
 		historyMessages = append(historyMessages, hm)
 	}

@@ -14,12 +14,12 @@ import "strconv"
 import "io"
 import log "github.com/golang/glog"
 
-const HEADER_SIZE = 32
-const MAGIC = 0x494d494d
-const F_VERSION = 1 << 16 //1.0
+const HeaderSize = 32
+const Magic = 0x494d494d
+const FVersion = 1 << 16 //1.0
 
-const BLOCK_SIZE = 128 * 1024 * 1024
-const LRU_SIZE = 128
+const BlockSize = 128 * 1024 * 1024
+const LruSize = 128
 
 type StorageFile struct {
 	root  string
@@ -43,7 +43,7 @@ func NewStorageFile(root string) *StorageFile {
 	storage := new(StorageFile)
 
 	storage.root = root
-	storage.files = lru.New(LRU_SIZE)
+	storage.files = lru.New(LruSize)
 	storage.files.OnEvicted = onFileEvicted
 
 	//find the last block file
@@ -86,11 +86,11 @@ func checkFile(filePath string) bool {
 		log.Fatal("seek file")
 	}
 
-	if fileSize == HEADER_SIZE {
+	if fileSize == HeaderSize {
 		return true
 	}
 
-	if fileSize < HEADER_SIZE {
+	if fileSize < HeaderSize {
 		return false
 	}
 
@@ -107,7 +107,7 @@ func checkFile(filePath string) bool {
 	buffer := bytes.NewBuffer(mf)
 	var m int32
 	binary.Read(buffer, binary.BigEndian, &m)
-	return int(m) == MAGIC
+	return int(m) == Magic
 }
 
 //open write file
@@ -122,7 +122,7 @@ func (storage *StorageFile) openWriteFile(blockNo int) {
 	if err != nil {
 		log.Fatal("seek file")
 	}
-	if fileSize < HEADER_SIZE && fileSize > 0 {
+	if fileSize < HeaderSize && fileSize > 0 {
 		log.Info("file header is't complete")
 		err = file.Truncate(0)
 		if err != nil {
@@ -155,7 +155,7 @@ func (storage *StorageFile) openReadFile(blockNo int) *os.File {
 	if err != nil {
 		log.Fatal("seek file")
 	}
-	if fileSize < HEADER_SIZE && fileSize > 0 {
+	if fileSize < HeaderSize && fileSize > 0 {
 		if err != nil {
 			log.Fatal("file header is't complete")
 		}
@@ -164,15 +164,15 @@ func (storage *StorageFile) openReadFile(blockNo int) *os.File {
 }
 
 func (storage *StorageFile) getMsgId(blockNo int, offset int) int64 {
-	return int64(blockNo)*BLOCK_SIZE + int64(offset)
+	return int64(blockNo)*BlockSize + int64(offset)
 }
 
 func (storage *StorageFile) getBlockNO(msgid int64) int {
-	return int(msgid / BLOCK_SIZE)
+	return int(msgid / BlockSize)
 }
 
 func (storage *StorageFile) getBlockOffset(msgid int64) int {
-	return int(msgid % BLOCK_SIZE)
+	return int(msgid % BlockSize)
 }
 
 func (storage *StorageFile) getFile(blockNo int) *os.File {
@@ -198,7 +198,7 @@ func (storage *StorageFile) ReadMessage(file *os.File) *Message {
 		return nil
 	}
 
-	if magic != MAGIC {
+	if magic != Magic {
 		log.Warning("magic err:", magic)
 		return nil
 	}
@@ -213,7 +213,7 @@ func (storage *StorageFile) ReadMessage(file *os.File) *Message {
 		return nil
 	}
 
-	if magic != MAGIC {
+	if magic != Magic {
 		log.Warning("magic err:", magic)
 		return nil
 	}
@@ -241,9 +241,9 @@ func (storage *StorageFile) LoadMessage(msgid int64) *Message {
 }
 
 func (storage *StorageFile) ReadHeader(file *os.File) (magic int, version int) {
-	header := make([]byte, HEADER_SIZE)
+	header := make([]byte, HeaderSize)
 	n, err := file.Read(header)
-	if err != nil || n != HEADER_SIZE {
+	if err != nil || n != HeaderSize {
 		return
 	}
 	buffer := bytes.NewBuffer(header)
@@ -256,28 +256,28 @@ func (storage *StorageFile) ReadHeader(file *os.File) (magic int, version int) {
 }
 
 func (storage *StorageFile) WriteHeader(file *os.File) {
-	var m int32 = MAGIC
+	var m int32 = Magic
 	err := binary.Write(file, binary.BigEndian, m)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	var v int32 = F_VERSION
+	var v int32 = FVersion
 	err = binary.Write(file, binary.BigEndian, v)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	pad := make([]byte, HEADER_SIZE-8)
+	pad := make([]byte, HeaderSize-8)
 	n, err := file.Write(pad)
-	if err != nil || n != (HEADER_SIZE-8) {
+	if err != nil || n != (HeaderSize-8) {
 		log.Fatalln(err)
 	}
 }
 
 func (storage *StorageFile) WriteMessage(file io.Writer, msg *Message) {
 	buffer := new(bytes.Buffer)
-	binary.Write(buffer, binary.BigEndian, int32(MAGIC))
+	binary.Write(buffer, binary.BigEndian, int32(Magic))
 	WriteMessage(buffer, msg)
-	binary.Write(buffer, binary.BigEndian, int32(MAGIC))
+	binary.Write(buffer, binary.BigEndian, int32(Magic))
 	buf := buffer.Bytes()
 	n, err := file.Write(buf)
 	if err != nil {
@@ -296,12 +296,12 @@ func (storage *StorageFile) saveMessage(msg *Message) int64 {
 	}
 
 	buffer := new(bytes.Buffer)
-	binary.Write(buffer, binary.BigEndian, int32(MAGIC))
+	binary.Write(buffer, binary.BigEndian, int32(Magic))
 	WriteMessage(buffer, msg)
-	binary.Write(buffer, binary.BigEndian, int32(MAGIC))
+	binary.Write(buffer, binary.BigEndian, int32(Magic))
 	buf := buffer.Bytes()
 
-	if msgid+int64(len(buf)) > BLOCK_SIZE {
+	if msgid+int64(len(buf)) > BlockSize {
 		err = storage.file.Sync()
 		if err != nil {
 			log.Fatalln("sync storage file:", err)
@@ -314,7 +314,7 @@ func (storage *StorageFile) saveMessage(msg *Message) int64 {
 		}
 	}
 
-	if msgid+int64(len(buf)) > BLOCK_SIZE {
+	if msgid+int64(len(buf)) > BlockSize {
 		log.Fatalln("message size:", len(buf))
 	}
 	n, err := storage.file.Write(buf)
@@ -326,7 +326,7 @@ func (storage *StorageFile) saveMessage(msg *Message) int64 {
 	}
 	storage.dirty = true
 
-	msgid = int64(storage.blockNo)*BLOCK_SIZE + msgid
+	msgid = int64(storage.blockNo)*BlockSize + msgid
 	master.ewt <- &EMessage{msgid: msgid, msg: msg}
 	log.Info("save message:", Command(msg.cmd), " ", msgid)
 	return msgid

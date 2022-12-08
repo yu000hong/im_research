@@ -16,12 +16,12 @@ type GroupID struct {
 type GroupStorage struct {
 	*StorageFile
 
-	message_index map[GroupID]int64 //记录每个群组最近的消息ID
+	messageIndex map[GroupID]int64 //记录每个群组最近的消息ID
 }
 
 func NewGroupStorage(f *StorageFile) *GroupStorage {
 	storage := &GroupStorage{StorageFile: f}
-	storage.message_index = make(map[GroupID]int64)
+	storage.messageIndex = make(map[GroupID]int64)
 	return storage
 }
 
@@ -42,7 +42,7 @@ func (storage *GroupStorage) SaveGroupMessage(appid int64, gid int64, device_id 
 
 func (storage *GroupStorage) setLastGroupMessageID(appid int64, gid int64, msgid int64) {
 	id := GroupID{appid, gid}
-	storage.message_index[id] = msgid
+	storage.messageIndex[id] = msgid
 	if msgid > storage.lastId {
 		storage.lastId = msgid
 	}
@@ -56,7 +56,7 @@ func (storage *GroupStorage) SetLastGroupMessageID(appid int64, gid int64, msgid
 
 func (storage *GroupStorage) getLastGroupMessageID(appid int64, gid int64) (int64, error) {
 	id := GroupID{appid, gid}
-	return storage.message_index[id], nil
+	return storage.messageIndex[id], nil
 }
 
 func (storage *GroupStorage) GetLastGroupMessageID(appid int64, gid int64) (int64, error) {
@@ -128,7 +128,7 @@ func (storage *GroupStorage) createGroupIndex() {
 			continue
 		}
 
-		_, err := file.Seek(HEADER_SIZE, os.SEEK_SET)
+		_, err := file.Seek(HeaderSize, os.SEEK_SET)
 		if err != nil {
 			log.Warning("seek file err:", err)
 			file.Close()
@@ -148,7 +148,7 @@ func (storage *GroupStorage) createGroupIndex() {
 			if msg.cmd == MSG_GROUP_IM_LIST {
 				off := msg.body.(*GroupOfflineMessage)
 				id := GroupID{off.appid, off.gid}
-				storage.message_index[id] = msgid
+				storage.messageIndex[id] = msgid
 				if msgid > storage.lastId {
 					storage.lastId = msgid
 				}
@@ -173,7 +173,7 @@ func (storage *GroupStorage) repairGroupIndex() {
 			continue
 		}
 
-		offset := HEADER_SIZE
+		offset := HeaderSize
 		if i == first {
 			offset = off
 		}
@@ -199,8 +199,8 @@ func (storage *GroupStorage) repairGroupIndex() {
 				off := msg.body.(*GroupOfflineMessage)
 				id := GroupID{off.appid, off.gid}
 				block_NO := i
-				msgid = int64(block_NO)*BLOCK_SIZE + msgid
-				storage.message_index[id] = msgid
+				msgid = int64(block_NO)*BlockSize + msgid
+				storage.messageIndex[id] = msgid
 				if msgid > storage.lastId {
 					storage.lastId = msgid
 				}
@@ -243,7 +243,7 @@ func (storage *GroupStorage) readGroupIndex() bool {
 			binary.Read(buffer, binary.BigEndian, &id.gid)
 			binary.Read(buffer, binary.BigEndian, &msg_id)
 
-			storage.message_index[id] = msg_id
+			storage.messageIndex[id] = msg_id
 			if msg_id > storage.lastId {
 				storage.lastId = msg_id
 			}
@@ -264,7 +264,7 @@ func (storage *GroupStorage) removeGroupIndex() {
 
 func (storage *GroupStorage) cloneGroupIndex() map[GroupID]int64 {
 	message_index := make(map[GroupID]int64)
-	for k, v := range storage.message_index {
+	for k, v := range storage.messageIndex {
 		message_index[k] = v
 	}
 	return message_index

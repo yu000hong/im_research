@@ -308,7 +308,7 @@ func (peerStorage *PeerStorage) createPeerIndex() {
 			continue
 		}
 
-		_, err := file.Seek(HEADER_SIZE, os.SEEK_SET)
+		_, err := file.Seek(HeaderSize, os.SEEK_SET)
 		if err != nil {
 			log.Warning("seek file err:", err)
 			_ = file.Close()
@@ -328,12 +328,12 @@ func (peerStorage *PeerStorage) createPeerIndex() {
 			if msg.cmd == MSG_OFFLINE {
 				off := msg.body.(*OfflineMessage)
 				blockNo := i
-				msgid = int64(blockNo)*BLOCK_SIZE + msgid
+				msgid = int64(blockNo)*BlockSize + msgid
 				peerStorage.setLastMessageID(off.appid, off.receiver, msgid, msgid)
 			} else if msg.cmd == MSG_OFFLINE_V2 {
 				off := msg.body.(*OfflineMessage2)
 				blockNo := i
-				msgid = int64(blockNo)*BLOCK_SIZE + msgid
+				msgid = int64(blockNo)*BlockSize + msgid
 				lastPeerId := msgid
 				if (msg.flag & MESSAGE_FLAG_GROUP) != 0 {
 					_, lastPeerId = peerStorage.getLastMessageID(off.appid, off.receiver)
@@ -360,7 +360,7 @@ func (peerStorage *PeerStorage) repairPeerIndex() {
 			continue
 		}
 
-		offset := HEADER_SIZE
+		offset := HeaderSize
 		if i == first {
 			offset = off
 		}
@@ -388,7 +388,7 @@ func (peerStorage *PeerStorage) repairPeerIndex() {
 			} else if msg.cmd == MSG_OFFLINE_V2 {
 				off := msg.body.(*OfflineMessage2)
 				blockNo := i
-				msgid = int64(blockNo)*BLOCK_SIZE + msgid
+				msgid = int64(blockNo)*BlockSize + msgid
 				lastPeerId := msgid
 				if (msg.flag & MESSAGE_FLAG_GROUP) != 0 {
 					_, lastPeerId = peerStorage.getLastMessageID(off.appid, off.receiver)

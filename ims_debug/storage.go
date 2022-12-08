@@ -48,7 +48,7 @@ func (storage *Storage) NextMsgid() int64 {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	return offset + int64(storage.blockNo)*BLOCK_SIZE
+	return offset + int64(storage.blockNo)*BlockSize
 }
 
 func (storage *Storage) execMessage(msg *Message, msgid int64) {
@@ -161,7 +161,7 @@ func (storage *Storage) LoadSyncMessagesInBackground(cursor int64) chan *Message
 					break
 				}
 
-				_, err = file.Seek(HEADER_SIZE, os.SEEK_SET)
+				_, err = file.Seek(HeaderSize, os.SEEK_SET)
 				if err != nil {
 					log.Info("seek file err:", err)
 					break
@@ -223,7 +223,7 @@ func (storage *Storage) flushIndex() {
 
 func (storage *Storage) FlushIndex() {
 	do_flush := false
-	if storage.lastId-storage.lastSavedId > 2*BLOCK_SIZE {
+	if storage.lastId-storage.lastSavedId > 2*BlockSize {
 		do_flush = true
 	}
 	if do_flush {

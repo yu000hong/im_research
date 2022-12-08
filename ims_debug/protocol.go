@@ -9,13 +9,11 @@ import "encoding/hex"
 
 //平台号
 
-const PLATFORM_IOS = 1
-const PLATFORM_ANDROID = 2
-const PLATFORM_WEB = 3
-
-const DEFAULT_VERSION = 1
-
-const MSG_HEADER_SIZE = 12
+const PlatformIos = 1
+const PlatformAndroid = 2
+const PlatformWeb = 3
+const DefaultVersion = 1
+const MsgHeaderSize = 12
 
 type MessageCreator func() IMessage
 type VersionMessageCreator func() IVersionMessage
