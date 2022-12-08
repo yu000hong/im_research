@@ -133,13 +133,13 @@ func NewRedisPool(server, password string, db int) *redis.Pool {
 			}
 			if len(password) > 0 {
 				if _, err := c.Do("AUTH", password); err != nil {
-					c.Close()
+					_ = c.Close()
 					return nil, err
 				}
 			}
 			if db > 0 && db < 16 {
 				if _, err := c.Do("SELECT", db); err != nil {
-					c.Close()
+					_ = c.Close()
 					return nil, err
 				}
 			}
@@ -262,7 +262,7 @@ func PushGroupMessage(appid int64, groupId int64, m *Message) {
 		}
 	}
 
-	for channel, _ := range channels {
+	for channel := range channels {
 		channel.Publish(amsg)
 	}
 }
@@ -302,7 +302,7 @@ func SendAppMessage(appid int64, uid int64, msg *Message) {
 	DispatchAppMessage(amsg)
 }
 
-//过滤敏感词
+// FilterDirtyWord 过滤敏感词
 func FilterDirtyWord(msg *IMMessage) {
 	if filter == nil {
 		return
@@ -350,22 +350,22 @@ func DispatchAppMessage(amsg *AppMessage) {
 		log.Infof("can't dispatch app message, appid:%d uid:%d cmd:%s", amsg.appid, amsg.receiver, Command(amsg.message.cmd))
 		return
 	}
-	for c, _ := range clients {
+	for c := range clients {
 		c.EnqueueNonBlockMessage(amsg.message)
 	}
 }
 
 func DispatchRoomMessage(amsg *AppMessage) {
 	log.Info("dispatch room message", Command(amsg.message.cmd))
-	room_id := amsg.receiver
+	roomId := amsg.receiver
 	route := appRoute.FindOrAddRoute(amsg.appid)
-	clients := route.FindRoomClientSet(room_id)
+	clients := route.FindRoomClientSet(roomId)
 
 	if len(clients) == 0 {
 		log.Infof("can't dispatch room message, appid:%d room id:%d cmd:%s", amsg.appid, amsg.receiver, Command(amsg.message.cmd))
 		return
 	}
-	for c, _ := range clients {
+	for c := range clients {
 		c.EnqueueNonBlockMessage(amsg.message)
 	}
 }
@@ -473,24 +473,18 @@ func main() {
 
 	config = readCfg(flag.Args()[0])
 	log.Infof("port:%d\n", config.port)
-
-	log.Infof("redis address:%s password:%s db:%d\n",
-		config.redisAddress, config.redisPassword, config.redisDb)
-
+	log.Infof("redis address:%s password:%s db:%d\n", config.redisAddress, config.redisPassword, config.redisDb)
 	log.Info("storage addresses:", config.storageRpcAddrs)
 	log.Info("route addressed:", config.routeAddrs)
 	log.Info("group route addressed:", config.groupRouteAddrs)
 	log.Info("kefu appid:", config.kefuAppid)
 	log.Info("pending root:", config.pendingRoot)
-
 	log.Infof("socket io address:%s tls_address:%s cert file:%s key file:%s",
 		config.socketIoAddress, config.tlsAddress, config.certFile, config.keyFile)
 	log.Info("group deliver count:", config.groupDeliverCount)
 	log.Info("sync self:", config.syncSelf)
 
-	redisPool = NewRedisPool(config.redisAddress, config.redisPassword,
-		config.redisDb)
-
+	redisPool = NewRedisPool(config.redisAddress, config.redisPassword, config.redisDb)
 	rpcClients = make([]*gorpc.DispatcherClient, 0)
 	for _, addr := range config.storageRpcAddrs {
 		c := &gorpc.Client{

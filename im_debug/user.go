@@ -8,7 +8,9 @@ import "errors"
 
 func GetSyncKey(appid int64, uid int64) int64 {
 	conn := redisPool.Get()
-	defer conn.Close()
+	defer func(conn redis.Conn) {
+		_ = conn.Close()
+	}(conn)
 
 	key := fmt.Sprintf("users_%d_%d", appid, uid)
 
@@ -22,7 +24,9 @@ func GetSyncKey(appid int64, uid int64) int64 {
 
 func GetGroupSyncKey(appid int64, uid int64, groupId int64) int64 {
 	conn := redisPool.Get()
-	defer conn.Close()
+	defer func(conn redis.Conn) {
+		_ = conn.Close()
+	}(conn)
 
 	key := fmt.Sprintf("users_%d_%d", appid, uid)
 	field := fmt.Sprintf("group_sync_key_%d", groupId)
@@ -37,7 +41,9 @@ func GetGroupSyncKey(appid int64, uid int64, groupId int64) int64 {
 
 func SaveSyncKey(appid int64, uid int64, syncKey int64) {
 	conn := redisPool.Get()
-	defer conn.Close()
+	defer func(conn redis.Conn) {
+		_ = conn.Close()
+	}(conn)
 
 	key := fmt.Sprintf("users_%d_%d", appid, uid)
 
@@ -49,7 +55,9 @@ func SaveSyncKey(appid int64, uid int64, syncKey int64) {
 
 func SaveGroupSyncKey(appid int64, uid int64, groupId int64, syncKey int64) {
 	conn := redisPool.Get()
-	defer conn.Close()
+	defer func(conn redis.Conn) {
+		_ = conn.Close()
+	}(conn)
 
 	key := fmt.Sprintf("users_%d_%d", appid, uid)
 	field := fmt.Sprintf("group_sync_key_%d", groupId)
@@ -62,7 +70,9 @@ func SaveGroupSyncKey(appid int64, uid int64, groupId int64, syncKey int64) {
 
 func GetUserForbidden(appid int64, uid int64) (int, error) {
 	conn := redisPool.Get()
-	defer conn.Close()
+	defer func(conn redis.Conn) {
+		_ = conn.Close()
+	}(conn)
 
 	key := fmt.Sprintf("users_%d_%d", appid, uid)
 
@@ -77,7 +87,9 @@ func GetUserForbidden(appid int64, uid int64) (int, error) {
 
 func LoadUserAccessToken(token string) (int64, int64, int, bool, error) {
 	conn := redisPool.Get()
-	defer conn.Close()
+	defer func(conn redis.Conn) {
+		_ = conn.Close()
+	}(conn)
 
 	key := fmt.Sprintf("access_token_%s", token)
 	var uid int64
@@ -111,7 +123,9 @@ func LoadUserAccessToken(token string) (int64, int64, int, bool, error) {
 
 func CountUser(appid int64, uid int64) {
 	conn := redisPool.Get()
-	defer conn.Close()
+	defer func(conn redis.Conn) {
+		_ = conn.Close()
+	}(conn)
 
 	key := fmt.Sprintf("statistics_users_%d", appid)
 	_, err := conn.Do("PFADD", key, uid)
@@ -122,7 +136,9 @@ func CountUser(appid int64, uid int64) {
 
 func CountDau(appid int64, uid int64) {
 	conn := redisPool.Get()
-	defer conn.Close()
+	defer func(conn redis.Conn) {
+		_ = conn.Close()
+	}(conn)
 
 	now := time.Now()
 	date := fmt.Sprintf("%d_%d_%d", now.Year(), int(now.Month()), now.Day())
@@ -135,7 +151,9 @@ func CountDau(appid int64, uid int64) {
 
 func SetUserUnreadCount(appid int64, uid int64, count int32) {
 	conn := redisPool.Get()
-	defer conn.Close()
+	defer func(conn redis.Conn) {
+		_ = conn.Close()
+	}(conn)
 
 	key := fmt.Sprintf("users_%d_%d", appid, uid)
 	_, err := conn.Do("HSET", key, "unread", count)

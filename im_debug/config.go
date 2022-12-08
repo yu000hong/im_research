@@ -5,7 +5,7 @@ import "log"
 import "strings"
 import "github.com/richmonkey/cfg"
 
-const DEFAULT_GROUP_DELIVER_COUNT = 4
+const DefaultGroupDeliverCount = 4
 
 type Config struct {
 	port                 int
@@ -107,16 +107,14 @@ func readCfg(cfgPath string) *Config {
 	config.kefuAppid = getOptInt(appCfg, "kefu_appid")
 
 	str := getString(appCfg, "storage_rpc_pool")
-	array := strings.Split(str, " ")
-	config.storageRpcAddrs = array
+	config.storageRpcAddrs = strings.Split(str, " ")
 	if len(config.storageRpcAddrs) == 0 {
 		log.Fatal("storage pool config")
 	}
 
 	str = getOptString(appCfg, "group_storage_rpc_pool")
 	if str != "" {
-		array = strings.Split(str, " ")
-		config.groupStorageRpcAddrs = array
+		config.groupStorageRpcAddrs = strings.Split(str, " ")
 		//check repeat
 		for _, addr := range config.groupStorageRpcAddrs {
 			for _, addr2 := range config.storageRpcAddrs {
@@ -128,16 +126,14 @@ func readCfg(cfgPath string) *Config {
 	}
 
 	str = getString(appCfg, "route_pool")
-	array = strings.Split(str, " ")
-	config.routeAddrs = array
+	config.routeAddrs = strings.Split(str, " ")
 	if len(config.routeAddrs) == 0 {
 		log.Fatal("route pool config")
 	}
 
 	str = getOptString(appCfg, "group_route_pool")
 	if str != "" {
-		array = strings.Split(str, " ")
-		config.groupRouteAddrs = array
+		config.groupRouteAddrs = strings.Split(str, " ")
 
 		//check repeat group_route_addrs and route_addrs
 		for _, addr := range config.groupRouteAddrs {
@@ -151,7 +147,7 @@ func readCfg(cfgPath string) *Config {
 
 	config.groupDeliverCount = int(getOptInt(appCfg, "group_deliver_count"))
 	if config.groupDeliverCount == 0 {
-		config.groupDeliverCount = DEFAULT_GROUP_DELIVER_COUNT
+		config.groupDeliverCount = DefaultGroupDeliverCount
 	}
 
 	config.wordFile = getOptString(appCfg, "word_file")
