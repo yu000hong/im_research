@@ -1,43 +1,21 @@
-package main
+package common
 
 import "bytes"
 import "encoding/binary"
 import "fmt"
 
-const MsgAuthStatus = 3
-const MsgIm = 4
-const MsgAck = 5
-const MsgGroupNotification = 7
-const MsgGroupIm = 8
-const MsgPing = 13
-const MsgPong = 14
-const MsgAuthToken = 15
-const MsgRt = 17
-const MsgEnterRoom = 18
-const MsgLeaveRoom = 19
-const MsgRoomIm = 20
-const MsgSystem = 21
-const MsgUnreadCount = 22
-const MsgCustomerService = 23
-const MsgCustomer = 24        //顾客->客服
-const MsgCustomerSupport = 25 //客服->顾客
-const MsgSync = 26            //客户端->服务端
-const MsgSyncBegin = 27       //服务端->客服端
-const MsgSyncEnd = 28
-const MsgSyncNotify = 29 //通知客户端有新消息
-const MsgSyncGroup = 30  //同步超级群消息
-const MsgSyncGroupBegin = 31
-const MsgSyncGroupEnd = 32
-const MsgSyncGroupNotify = 33
-const MsgSyncKey = 34
-const MsgGroupSyncKey = 35
-const MsgNotification = 36
-const MsgVoipControl = 64
+type MessageCreator func() IMessage
 
-const MessageFlagText = 0x01         //文本消息
-const MessageFlagUnpersistent = 0x02 //消息不持久化
-const MessageFlagGroup = 0x04
-const MessageFlagSelf = 0x08 //离线消息由当前登录的用户在当前设备发出
+type VersionMessageCreator func() IVersionMessage
+
+var messageDescriptions = make(map[int]string)
+
+var messageCreators = make(map[int]MessageCreator)
+
+var vmessageCreators = make(map[int]VersionMessageCreator)
+
+//true client->server
+var externalMessages [256]bool
 
 func init() {
 	messageCreators[MsgAck] = func() IMessage { return new(MessageACK) }
@@ -50,8 +28,6 @@ func init() {
 	messageCreators[MsgSystem] = func() IMessage { return new(SystemMessage) }
 	messageCreators[MsgUnreadCount] = func() IMessage { return new(MessageUnreadCount) }
 	messageCreators[MsgCustomerService] = func() IMessage { return new(IgnoreMessage) }
-	messageCreators[MsgCustomer] = func() IMessage { return new(CustomerMessage) }
-	messageCreators[MsgCustomerSupport] = func() IMessage { return new(CustomerMessage) }
 	messageCreators[MsgSync] = func() IMessage { return new(SyncKey) }
 	messageCreators[MsgSyncBegin] = func() IMessage { return new(SyncKey) }
 	messageCreators[MsgSyncEnd] = func() IMessage { return new(SyncKey) }
@@ -448,45 +424,6 @@ func (sys *SystemMessage) FromData(buff []byte) bool {
 
 //endregion
 
-//region CustomerMessage
-
-type CustomerMessage struct {
-	customerAppid int64 //顾客id所在appid
-	customerId    int64 //顾客id
-	storeId       int64
-	sellerId      int64
-	timestamp     int32
-	content       string
-}
-
-func (cs *CustomerMessage) ToData() []byte {
-	buffer := new(bytes.Buffer)
-	_ = binary.Write(buffer, binary.BigEndian, cs.customerAppid)
-	_ = binary.Write(buffer, binary.BigEndian, cs.customerId)
-	_ = binary.Write(buffer, binary.BigEndian, cs.storeId)
-	_ = binary.Write(buffer, binary.BigEndian, cs.sellerId)
-	_ = binary.Write(buffer, binary.BigEndian, cs.timestamp)
-	buffer.Write([]byte(cs.content))
-	buf := buffer.Bytes()
-	return buf
-}
-
-func (cs *CustomerMessage) FromData(buff []byte) bool {
-	if len(buff) < 36 {
-		return false
-	}
-	buffer := bytes.NewBuffer(buff)
-	_ = binary.Read(buffer, binary.BigEndian, &cs.customerAppid)
-	_ = binary.Read(buffer, binary.BigEndian, &cs.customerId)
-	_ = binary.Read(buffer, binary.BigEndian, &cs.storeId)
-	_ = binary.Read(buffer, binary.BigEndian, &cs.sellerId)
-	_ = binary.Read(buffer, binary.BigEndian, &cs.timestamp)
-	cs.content = string(buff[36:])
-	return true
-}
-
-//endregion
-
 //region GroupNotification
 
 type GroupNotification struct {
@@ -524,7 +461,7 @@ func (room *Room) FromData(buff []byte) bool {
 	return true
 }
 
-func (room *Room) RoomID() int64 {
+func (room *Room) RoomId() int64 {
 	return int64(*room)
 }
 
@@ -546,7 +483,7 @@ func (ctl *VOIPControl) ToData() []byte {
 	buffer := new(bytes.Buffer)
 	_ = binary.Write(buffer, binary.BigEndian, ctl.sender)
 	_ = binary.Write(buffer, binary.BigEndian, ctl.receiver)
-	buffer.Write([]byte(ctl.content))
+	buffer.Write(ctl.content)
 	buf := buffer.Bytes()
 	return buf
 }
