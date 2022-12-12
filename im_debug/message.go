@@ -196,9 +196,9 @@ func (ignore *IgnoreMessage) FromData(buff []byte) bool {
 //region AuthToken
 
 type AuthToken struct {
-	token      string
-	platformId int8
-	deviceId   string
+	accessToken string
+	platformId  int8
+	device      string
 }
 
 func (auth *AuthToken) ToData() []byte {
@@ -207,13 +207,13 @@ func (auth *AuthToken) ToData() []byte {
 	buffer := new(bytes.Buffer)
 	_ = binary.Write(buffer, binary.BigEndian, auth.platformId)
 
-	l = int8(len(auth.token))
+	l = int8(len(auth.accessToken))
 	_ = binary.Write(buffer, binary.BigEndian, l)
-	buffer.Write([]byte(auth.token))
+	buffer.Write([]byte(auth.accessToken))
 
-	l = int8(len(auth.deviceId))
+	l = int8(len(auth.device))
 	_ = binary.Write(buffer, binary.BigEndian, l)
-	buffer.Write([]byte(auth.deviceId))
+	buffer.Write([]byte(auth.device))
 
 	buf := buffer.Bytes()
 	return buf
@@ -242,8 +242,8 @@ func (auth *AuthToken) FromData(buff []byte) bool {
 	deviceId := make([]byte, l)
 	_, _ = buffer.Read(deviceId)
 
-	auth.token = string(token)
-	auth.deviceId = string(deviceId)
+	auth.accessToken = string(token)
+	auth.device = string(deviceId)
 	return true
 }
 

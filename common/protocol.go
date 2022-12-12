@@ -122,8 +122,3 @@ func ReceiveClientMessage(conn io.Reader) *Message {
 func ReceiveStorageSyncMessage(conn io.Reader) *Message {
 	return ReceiveLimitMessage(conn, 32*1024*1024, false)
 }
-
-func ReadBinaryMessage(b []byte) *Message {
-	reader := bytes.NewReader(b)
-	return ReceiveClientMessage(reader)
-}

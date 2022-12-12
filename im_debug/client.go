@@ -1,6 +1,8 @@
 package main
 
-import "net"
+import (
+	"net"
+)
 import "time"
 import "sync/atomic"
 import log "github.com/golang/glog"
@@ -135,9 +137,9 @@ func (client *Client) HandleAuthToken(login *AuthToken, version int) {
 	}
 
 	var err error
-	appid, uid, fb, on, err := client.AuthToken(login.token)
+	appid, uid, fb, on, err := client.AuthToken(login.accessToken)
 	if err != nil {
-		log.Infof("auth token:%s err:%s", login.token, err)
+		log.Infof("auth token:%s err:%s", login.accessToken, err)
 		msg := &Message{cmd: MsgAuthStatus, version: version, body: &AuthStatus{1, 0}}
 		client.EnqueueMessage(msg)
 		return
@@ -149,8 +151,8 @@ func (client *Client) HandleAuthToken(login *AuthToken, version int) {
 		return
 	}
 
-	if login.platformId != PlatformWeb && len(login.deviceId) > 0 {
-		client.deviceId, err = GetDeviceId(login.deviceId, int(login.platformId))
+	if login.platformId != PlatformWeb && len(login.device) > 0 {
+		client.deviceId, err = GetDeviceId(login.device, int(login.platformId))
 		if err != nil {
 			log.Info("auth token uid==0")
 			msg := &Message{cmd: MsgAuthStatus, version: version, body: &AuthStatus{1, 0}}
@@ -159,9 +161,9 @@ func (client *Client) HandleAuthToken(login *AuthToken, version int) {
 		}
 	}
 
-	is_mobile := login.platformId == PlatformIos || login.platformId == PlatformAndroid
+	isMobile := login.platformId == PlatformIos || login.platformId == PlatformAndroid
 	online := true
-	if on && !is_mobile {
+	if on && !isMobile {
 		online = false
 	}
 
@@ -171,11 +173,11 @@ func (client *Client) HandleAuthToken(login *AuthToken, version int) {
 	client.notificationOn = on
 	client.online = online
 	client.version = version
-	client.device = login.deviceId
+	client.device = login.device
 	client.platformId = login.platformId
 	client.tm = time.Now()
 	log.Infof("auth token:%s appid:%d uid:%d device id:%s:%d forbidden:%d notification on:%t online:%t",
-		login.token, client.appid, client.uid, client.device,
+		login.accessToken, client.appid, client.uid, client.device,
 		client.deviceId, client.forbidden, client.notificationOn, client.online)
 
 	msg := &Message{cmd: MsgAuthStatus, version: version, body: &AuthStatus{0, client.publicIp}}
@@ -207,7 +209,7 @@ func (client *Client) HandleACK(ack *MessageACK) {
 	log.Info("ack:", ack.seq)
 }
 
-//发送等待队列中的消息
+// SendMessages 发送等待队列中的消息
 func (client *Client) SendMessages(seq int) int {
 	var messages *list.List
 	client.mutex.Lock()

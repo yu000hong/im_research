@@ -1,6 +1,9 @@
 package main
 
-import "net"
+import (
+	"github.com/gorilla/websocket"
+	"net"
+)
 import "time"
 import "sync"
 import "sync/atomic"
@@ -216,6 +219,8 @@ func (client *Connection) read() *Message {
 		return ReceiveClientMessage(conn)
 	} else if conn, ok := client.conn.(engineio.Conn); ok {
 		return ReadEngineIOMessage(conn)
+	} else if conn, ok := client.conn.(websocket.Conn); ok {
+		return ReadWebsocketMessage(&conn)
 	}
 	return nil
 }
@@ -236,6 +241,8 @@ func (client *Connection) send(msg *Message) {
 		}
 	} else if conn, ok := client.conn.(engineio.Conn); ok {
 		SendEngineIOBinaryMessage(conn, msg)
+	} else if conn, ok := client.conn.(websocket.Conn); ok {
+		SendWebsocketMessage(&conn, msg)
 	}
 }
 

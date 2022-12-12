@@ -1,18 +1,17 @@
 package main
 
 import (
-	"bytes"
 	log "github.com/golang/glog"
 	"github.com/googollee/go-engine.io"
 	"io/ioutil"
 	"net/http"
 )
 
-type SIOServer struct {
+type EIOServer struct {
 	server *engineio.Server
 }
 
-func (s *SIOServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (s *EIOServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	log.Info(req.Header.Get("Origin"))
 	if req.Header.Get("Origin") != "" {
 		w.Header().Set("Access-Control-Allow-Origin", req.Header.Get("Origin"))
@@ -23,10 +22,11 @@ func (s *SIOServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	} else {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 	}
+	log.Info("req: %s", req)
 	s.server.ServeHTTP(w, req)
 }
 
-func StartSocketIO(address string, tlsAddress string, certFile string, keyFile string) {
+func StartEngineIO(address string, tlsAddress string, certFile string, keyFile string) {
 	server, err := engineio.NewServer(nil)
 	if err != nil {
 		log.Fatal(err)
@@ -38,12 +38,14 @@ func StartSocketIO(address string, tlsAddress string, certFile string, keyFile s
 			if err != nil {
 				log.Info("accept connect fail")
 			}
-			handleEngineIOClient(conn)
+			log.Info("new conn: %s", conn)
+			client := NewClient(conn)
+			client.Run()
 		}
 	}()
 
 	mux := http.NewServeMux()
-	mux.Handle("/engine.io/", &SIOServer{server})
+	mux.Handle("/ws", &EIOServer{server})
 	log.Infof("EngineIO Serving at %s...", address)
 
 	if tlsAddress != "" && certFile != "" && keyFile != "" {
@@ -59,26 +61,6 @@ func StartSocketIO(address string, tlsAddress string, certFile string, keyFile s
 	if err != nil {
 		log.Fatalf("listen err:%s", err)
 	}
-}
-
-func handleEngineIOClient(conn engineio.Conn) {
-	client := NewClient(conn)
-	client.Run()
-}
-
-func SendEngineIOBinaryMessage(conn engineio.Conn, msg *Message) {
-	w, err := conn.NextWriter(engineio.BINARY)
-	if err != nil {
-		log.Info("get next writer fail")
-		return
-	}
-	log.Info("message version:", msg.version)
-	err = SendMessage(w, msg)
-	if err != nil {
-		log.Info("engine io write error")
-		return
-	}
-	_ = w.Close()
 }
 
 func ReadEngineIOMessage(conn engineio.Conn) *Message {
@@ -98,7 +80,17 @@ func ReadEngineIOMessage(conn engineio.Conn) *Message {
 	}
 }
 
-func ReadBinaryMessage(b []byte) *Message {
-	reader := bytes.NewReader(b)
-	return ReceiveClientMessage(reader)
+func SendEngineIOBinaryMessage(conn engineio.Conn, msg *Message) {
+	w, err := conn.NextWriter(engineio.BINARY)
+	if err != nil {
+		log.Info("get next writer fail")
+		return
+	}
+	log.Info("message version:", msg.version)
+	err = SendMessage(w, msg)
+	if err != nil {
+		log.Info("engine io write error")
+		return
+	}
+	_ = w.Close()
 }

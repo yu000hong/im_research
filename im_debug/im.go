@@ -569,8 +569,8 @@ func main() {
 	go StartHttpServer(config.httpListenAddress)
 	StartRPCServer(config.rpcListenAddress)
 
-	go StartSocketIO(config.socketIoAddress, config.tlsAddress,
-		config.certFile, config.keyFile)
+	//go StartSocketIO(config.socketIoAddress, config.tlsAddress, config.certFile, config.keyFile)
+	go StartWebsocketServer(config.socketIoAddress)
 
 	if config.sslPort > 0 && len(config.certFile) > 0 && len(config.keyFile) > 0 {
 		go ListenSSL(config.sslPort, config.certFile, config.keyFile)
