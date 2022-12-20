@@ -7,8 +7,6 @@ const MsgSubscribe = 130
 const MsgUnsubscribe = 131
 const MsgPublish = 132
 
-const MsgGroupPublish = 135
-
 const MsgRoomSubscribe = 136
 const MsgRoomUnsubscribe = 137
 const MsgRoomPublish = 138
@@ -18,8 +16,6 @@ func init() {
 	messageCreators[MsgUnsubscribe] = func() IMessage { return new(AppUser) }
 	messageCreators[MsgPublish] = func() IMessage { return new(AppMessage) }
 
-	messageCreators[MsgGroupPublish] = func() IMessage { return new(AppMessage) }
-
 	messageCreators[MsgRoomSubscribe] = func() IMessage { return new(AppRoom) }
 	messageCreators[MsgRoomUnsubscribe] = func() IMessage { return new(AppRoom) }
 	messageCreators[MsgRoomPublish] = func() IMessage { return new(AppMessage) }
@@ -27,8 +23,6 @@ func init() {
 	messageDescriptions[MsgSubscribe] = "MSG_SUBSCRIBE"
 	messageDescriptions[MsgUnsubscribe] = "MSG_UNSUBSCRIBE"
 	messageDescriptions[MsgPublish] = "MSG_PUBLISH"
-
-	messageDescriptions[MsgGroupPublish] = "MSG_GROUP_PUBLISH"
 
 	messageDescriptions[MsgRoomSubscribe] = "MSG_ROOM_SUBSCRIBE"
 	messageDescriptions[MsgRoomUnsubscribe] = "MSG_ROOM_UNSUBSCRIBE"

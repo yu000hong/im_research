@@ -21,42 +21,6 @@ func (client *Client) PublishPeerMessage(appid int64, im *IMMessage) {
 	client.PushChan("push_queue", b)
 }
 
-func (client *Client) PublishGroupMessage(appid int64, receivers []int64, im *IMMessage) {
-	conn := redisPool.Get()
-	defer conn.Close()
-
-	v := make(map[string]interface{})
-	v["appid"] = appid
-	v["sender"] = im.sender
-	v["receivers"] = receivers
-	v["content"] = im.content
-	v["group_id"] = im.receiver
-
-	b, _ := json.Marshal(v)
-	client.PushChan("group_push_queue", b)
-}
-
-func (client *Client) PublishCustomerMessage(appid, receiver int64, cs *CustomerMessage, cmd int) {
-	conn := redisPool.Get()
-	defer conn.Close()
-
-	v := make(map[string]interface{})
-	v["appid"] = appid
-	v["receiver"] = receiver
-	v["command"] = cmd
-	v["customer_appid"] = cs.customerAppid
-	v["customer"] = cs.customerId
-	v["seller"] = cs.sellerId
-	v["store"] = cs.storeId
-	v["content"] = cs.content
-
-	b, _ := json.Marshal(v)
-	var queueName string
-	queueName = "customer_push_queue"
-
-	client.PushChan(queueName, b)
-}
-
 func (client *Client) PublishSystemMessage(appid, receiver int64, content string) {
 	conn := redisPool.Get()
 	defer conn.Close()

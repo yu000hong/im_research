@@ -23,7 +23,6 @@ var config *RouteConfig
 var clients ClientSet
 var mutex sync.Mutex
 var redisPool *redis.Pool
-var groupManager *GroupManager
 
 func init() {
 	clients = NewClientSet()
@@ -192,11 +191,7 @@ func main() {
 	log.Infof("redis address:%s password:%s db:%d\n",
 		config.redisAddress, config.redisPassword, config.redisDb)
 
-	redisPool = NewRedisPool(config.redisAddress, config.redisPassword,
-		config.redisDb)
-
-	groupManager = NewGroupManager()
-	groupManager.Start()
+	redisPool = NewRedisPool(config.redisAddress, config.redisPassword, config.redisDb)
 
 	if len(config.httpListenAddress) > 0 {
 		go StartHttpServer(config.httpListenAddress)
