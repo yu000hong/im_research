@@ -279,6 +279,7 @@ func (client *Client) Write() {
 		select {
 		case <-t:
 			running = false
+			log.Warning("running timeout")
 		case <-client.wt:
 			log.Warning("msg is dropped")
 		}

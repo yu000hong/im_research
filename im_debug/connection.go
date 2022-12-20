@@ -190,8 +190,10 @@ func (client *Connection) send(msg *Message) {
 		}
 	} else if conn, ok := client.conn.(engineio.Conn); ok {
 		SendEngineIOBinaryMessage(conn, msg)
-	} else if conn, ok := client.conn.(websocket.Conn); ok {
-		SendWebsocketMessage(&conn, msg)
+	} else if conn, ok := client.conn.(*websocket.Conn); ok {
+		SendWebsocketMessage(conn, msg)
+	} else {
+		log.Errorf("invalid conn: %s", client.conn)
 	}
 }
 
