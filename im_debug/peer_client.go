@@ -116,7 +116,7 @@ func (client *PeerClient) HandleIMMessage(message *Message) {
 	msg := message.body.(*IMMessage)
 	seq := message.seq
 	if client.uid == 0 {
-		log.Warning("client has't been authenticated")
+		log.Warning("client hasn't been authenticated")
 		return
 	}
 
