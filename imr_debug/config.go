@@ -6,7 +6,6 @@ import "github.com/richmonkey/cfg"
 
 type RouteConfig struct {
 	listen            string
-	mysqldbDatasource string
 	redisAddress      string
 	redisPassword     string
 	redisDb           int
@@ -63,7 +62,6 @@ func readRouteCfg(cfgPath string) *RouteConfig {
 	}
 
 	config.listen = getString(appCfg, "listen")
-	config.mysqldbDatasource = getString(appCfg, "mysqldb_source")
 	config.redisAddress = getString(appCfg, "redis_address")
 	config.redisPassword = getOptString(appCfg, "redis_password")
 	config.redisDb = getOptInt(appCfg, "redis_db")
