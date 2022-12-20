@@ -22,23 +22,6 @@ func GetSyncKey(appid int64, uid int64) int64 {
 	return origin
 }
 
-func GetGroupSyncKey(appid int64, uid int64, groupId int64) int64 {
-	conn := redisPool.Get()
-	defer func(conn redis.Conn) {
-		_ = conn.Close()
-	}(conn)
-
-	key := fmt.Sprintf("users_%d_%d", appid, uid)
-	field := fmt.Sprintf("group_sync_key_%d", groupId)
-
-	origin, err := redis.Int64(conn.Do("HGET", key, field))
-	if err != nil && err != redis.ErrNil {
-		log.Info("hget error:", err)
-		return 0
-	}
-	return origin
-}
-
 func SaveSyncKey(appid int64, uid int64, syncKey int64) {
 	conn := redisPool.Get()
 	defer func(conn redis.Conn) {
@@ -48,21 +31,6 @@ func SaveSyncKey(appid int64, uid int64, syncKey int64) {
 	key := fmt.Sprintf("users_%d_%d", appid, uid)
 
 	_, err := conn.Do("HSET", key, "sync_key", syncKey)
-	if err != nil {
-		log.Warning("hset error:", err)
-	}
-}
-
-func SaveGroupSyncKey(appid int64, uid int64, groupId int64, syncKey int64) {
-	conn := redisPool.Get()
-	defer func(conn redis.Conn) {
-		_ = conn.Close()
-	}(conn)
-
-	key := fmt.Sprintf("users_%d_%d", appid, uid)
-	field := fmt.Sprintf("group_sync_key_%d", groupId)
-
-	_, err := conn.Do("HSET", key, field, syncKey)
 	if err != nil {
 		log.Warning("hset error:", err)
 	}
@@ -105,8 +73,7 @@ func LoadUserAccessToken(token string) (int64, int64, int, bool, error) {
 		return 0, 0, 0, false, errors.New("token non exists")
 	}
 
-	reply, err := redis.Values(conn.Do("HMGET", key, "user_id",
-		"app_id", "notification_on", "forbidden"))
+	reply, err := redis.Values(conn.Do("HMGET", key, "uid", "appid", "notification_on", "forbidden"))
 	if err != nil {
 		log.Info("hmget error:", err)
 		return 0, 0, 0, false, err

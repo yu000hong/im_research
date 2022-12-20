@@ -11,9 +11,8 @@ import "container/list"
 type Client struct {
 	Connection //必须放在结构体首部
 	*PeerClient
-	*GroupClient
+	//*GroupClient
 	*RoomClient
-	*CustomerClient
 	publicIp int32
 }
 
@@ -40,9 +39,7 @@ func NewClient(conn interface{}) *Client {
 	atomic.AddInt64(&serverSummary.nconnections, 1)
 
 	client.PeerClient = &PeerClient{&client.Connection}
-	client.GroupClient = &GroupClient{&client.Connection}
 	client.RoomClient = &RoomClient{Connection: &client.Connection}
-	client.CustomerClient = NewCustomerClient(&client.Connection)
 	return client
 }
 
@@ -62,6 +59,7 @@ func (client *Client) Read() {
 			log.Infof("client:%d socket read timeout:%d %d", client.uid, t1, t2)
 		}
 		if msg == nil {
+			log.Infof("client:%d read msg is null", client.uid)
 			client.HandleClientClosed()
 			break
 		}
@@ -82,8 +80,8 @@ func (client *Client) RemoveClient() {
 	}
 	route.RemoveClient(client)
 
-	if client.room_id > 0 {
-		route.RemoveRoomClient(client.room_id, client)
+	if client.roomId > 0 {
+		route.RemoveRoomClient(client.roomId, client)
 	}
 }
 
@@ -115,9 +113,7 @@ func (client *Client) HandleMessage(msg *Message) {
 	}
 
 	client.PeerClient.HandleMessage(msg)
-	client.GroupClient.HandleMessage(msg)
 	client.RoomClient.HandleMessage(msg)
-	client.CustomerClient.HandleMessage(msg)
 }
 
 func (client *Client) AuthToken(token string) (int64, int64, int, bool, error) {
@@ -225,7 +221,7 @@ func (client *Client) SendMessages(seq int) int {
 	for e != nil {
 		msg := e.Value.(*Message)
 		if msg.cmd == MsgRt || msg.cmd == MsgIm || msg.cmd == MsgGroupIm {
-			atomic.AddInt64(&serverSummary.out_message_count, 1)
+			atomic.AddInt64(&serverSummary.outMessageCount, 1)
 		}
 		seq++
 		//以当前客户端所用版本号发送消息
@@ -252,7 +248,7 @@ func (client *Client) Write() {
 				break
 			}
 			if msg.cmd == MsgRt || msg.cmd == MsgIm || msg.cmd == MsgGroupIm {
-				atomic.AddInt64(&serverSummary.out_message_count, 1)
+				atomic.AddInt64(&serverSummary.outMessageCount, 1)
 			}
 			seq++
 
@@ -262,7 +258,7 @@ func (client *Client) Write() {
 		case messages := <-client.pwt:
 			for _, msg := range messages {
 				if msg.cmd == MsgRt || msg.cmd == MsgIm || msg.cmd == MsgGroupIm {
-					atomic.AddInt64(&serverSummary.out_message_count, 1)
+					atomic.AddInt64(&serverSummary.outMessageCount, 1)
 				}
 				seq++
 
@@ -273,7 +269,6 @@ func (client *Client) Write() {
 		case <-client.lwt:
 			seq = client.SendMessages(seq)
 			break
-
 		}
 	}
 

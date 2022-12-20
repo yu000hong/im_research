@@ -13,14 +13,6 @@ func (client *PeerClient) Login() {
 
 	channel.Subscribe(client.appid, client.uid, client.online)
 
-	for _, c := range groupRouteChannels {
-		if c == channel {
-			continue
-		}
-
-		c.Subscribe(client.appid, client.uid, client.online)
-	}
-
 	SetUserUnreadCount(client.appid, client.uid, 0)
 }
 
@@ -28,14 +20,6 @@ func (client *PeerClient) Logout() {
 	if client.uid > 0 {
 		channel := GetChannel(client.uid)
 		channel.Unsubscribe(client.appid, client.uid, client.online)
-
-		for _, c := range groupRouteChannels {
-			if c == channel {
-				continue
-			}
-
-			c.Unsubscribe(client.appid, client.uid, client.online)
-		}
 	}
 }
 
@@ -176,7 +160,7 @@ func (client *PeerClient) HandleIMMessage(message *Message) {
 		log.Warning("send peer message ack error")
 	}
 
-	atomic.AddInt64(&serverSummary.in_message_count, 1)
+	atomic.AddInt64(&serverSummary.inMessageCount, 1)
 	log.Infof("peer message sender:%d receiver:%d msgid:%d\n", msg.sender, msg.receiver, msgid)
 }
 
@@ -194,7 +178,7 @@ func (client *PeerClient) HandleRTMessage(msg *Message) {
 	m := &Message{cmd: MsgRt, body: rt}
 	client.SendMessage(rt.receiver, m)
 
-	atomic.AddInt64(&serverSummary.in_message_count, 1)
+	atomic.AddInt64(&serverSummary.inMessageCount, 1)
 	log.Infof("realtime message sender:%d receiver:%d", rt.sender, rt.receiver)
 }
 

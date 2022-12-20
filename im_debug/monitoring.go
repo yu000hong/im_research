@@ -8,10 +8,10 @@ import "runtime/pprof"
 import log "github.com/golang/glog"
 
 type ServerSummary struct {
-	nconnections      int64
-	nclients          int64
-	in_message_count  int64
-	out_message_count int64
+	nconnections    int64
+	nclients        int64
+	inMessageCount  int64
+	outMessageCount int64
 }
 
 func NewServerSummary() *ServerSummary {
@@ -24,8 +24,8 @@ func Summary(rw http.ResponseWriter, req *http.Request) {
 	obj["goroutine_count"] = runtime.NumGoroutine()
 	obj["connection_count"] = serverSummary.nconnections
 	obj["client_count"] = serverSummary.nclients
-	obj["in_message_count"] = serverSummary.in_message_count
-	obj["out_message_count"] = serverSummary.out_message_count
+	obj["in_message_count"] = serverSummary.inMessageCount
+	obj["out_message_count"] = serverSummary.outMessageCount
 
 	res, err := json.Marshal(obj)
 	if err != nil {

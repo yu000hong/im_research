@@ -6,15 +6,15 @@ import "sync/atomic"
 
 type RoomClient struct {
 	*Connection
-	room_id int64
+	roomId int64
 }
 
 func (client *RoomClient) Logout() {
-	if client.room_id > 0 {
-		channel := GetRoomChannel(client.room_id)
-		channel.UnsubscribeRoom(client.appid, client.room_id)
+	if client.roomId > 0 {
+		channel := GetRoomChannel(client.roomId)
+		channel.UnsubscribeRoom(client.appid, client.roomId)
 		route := appRoute.FindOrAddRoute(client.appid)
-		route.RemoveRoomClient(client.room_id, client.Client())
+		route.RemoveRoomClient(client.roomId, client.Client())
 	}
 }
 
@@ -31,27 +31,27 @@ func (client *RoomClient) HandleMessage(msg *Message) {
 
 func (client *RoomClient) HandleEnterRoom(room *Room) {
 	if client.uid == 0 {
-		log.Warning("client has't been authenticated")
+		log.Warning("client hasn't been authenticated")
 		return
 	}
 
-	room_id := room.RoomID()
-	log.Info("enter room id:", room_id)
-	if room_id == 0 || client.room_id == room_id {
+	roomId := room.RoomID()
+	log.Info("enter room id:", roomId)
+	if roomId == 0 || client.roomId == roomId {
 		return
 	}
 	route := appRoute.FindOrAddRoute(client.appid)
-	if client.room_id > 0 {
-		channel := GetRoomChannel(client.room_id)
-		channel.UnsubscribeRoom(client.appid, client.room_id)
+	if client.roomId > 0 {
+		channel := GetRoomChannel(client.roomId)
+		channel.UnsubscribeRoom(client.appid, client.roomId)
 
-		route.RemoveRoomClient(client.room_id, client.Client())
+		route.RemoveRoomClient(client.roomId, client.Client())
 	}
 
-	client.room_id = room_id
-	route.AddRoomClient(client.room_id, client.Client())
-	channel := GetRoomChannel(client.room_id)
-	channel.SubscribeRoom(client.appid, client.room_id)
+	client.roomId = roomId
+	route.AddRoomClient(client.roomId, client.Client())
+	channel := GetRoomChannel(client.roomId)
+	channel.SubscribeRoom(client.appid, client.roomId)
 }
 
 func (client *RoomClient) Client() *Client {
@@ -61,46 +61,46 @@ func (client *RoomClient) Client() *Client {
 
 func (client *RoomClient) HandleLeaveRoom(room *Room) {
 	if client.uid == 0 {
-		log.Warning("client has't been authenticated")
+		log.Warning("client hasn't been authenticated")
 		return
 	}
 
-	room_id := room.RoomID()
-	log.Info("leave room id:", room_id)
-	if room_id == 0 {
+	roomId := room.RoomID()
+	log.Info("leave room id:", roomId)
+	if roomId == 0 {
 		return
 	}
-	if client.room_id != room_id {
+	if client.roomId != roomId {
 		return
 	}
 
 	route := appRoute.FindOrAddRoute(client.appid)
-	route.RemoveRoomClient(client.room_id, client.Client())
-	channel := GetRoomChannel(client.room_id)
-	channel.UnsubscribeRoom(client.appid, client.room_id)
-	client.room_id = 0
+	route.RemoveRoomClient(client.roomId, client.Client())
+	channel := GetRoomChannel(client.roomId)
+	channel.UnsubscribeRoom(client.appid, client.roomId)
+	client.roomId = 0
 }
 
-func (client *RoomClient) HandleRoomIM(room_im *RoomMessage, seq int) {
+func (client *RoomClient) HandleRoomIM(roomIm *RoomMessage, seq int) {
 	if client.uid == 0 {
-		log.Warning("client has't been authenticated")
+		log.Warning("client hasn't been authenticated")
 		return
 	}
-	room_id := room_im.receiver
-	if room_id != client.room_id {
-		log.Warningf("room id:%d is't client's room id:%d\n", room_id, client.room_id)
+	roomId := roomIm.receiver
+	if roomId != client.roomId {
+		log.Warningf("room id:%d isn't client's room id:%d\n", roomId, client.roomId)
 		return
 	}
 
 	fb := atomic.LoadInt32(&client.forbidden)
 	if fb == 1 {
-		log.Infof("room id:%d client:%d, %d is forbidden", room_id, client.appid, client.uid)
+		log.Infof("room id:%d client:%d, %d is forbidden", roomId, client.appid, client.uid)
 		return
 	}
 
-	m := &Message{cmd: MsgRoomIm, body: room_im}
+	m := &Message{cmd: MsgRoomIm, body: roomIm}
 	route := appRoute.FindOrAddRoute(client.appid)
-	clients := route.FindRoomClientSet(room_id)
+	clients := route.FindRoomClientSet(roomId)
 	for c, _ := range clients {
 		if c == client.Client() {
 			continue
@@ -108,8 +108,8 @@ func (client *RoomClient) HandleRoomIM(room_im *RoomMessage, seq int) {
 		c.EnqueueNonBlockMessage(m)
 	}
 
-	amsg := &AppMessage{appid: client.appid, receiver: room_id, message: m}
-	channel := GetRoomChannel(client.room_id)
+	amsg := &AppMessage{appid: client.appid, receiver: roomId, message: m}
+	channel := GetRoomChannel(client.roomId)
 	channel.PublishRoom(amsg)
 
 	client.wt <- &Message{cmd: MsgAck, body: &MessageACK{int32(seq)}}

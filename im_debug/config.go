@@ -5,16 +5,11 @@ import "log"
 import "strings"
 import "github.com/richmonkey/cfg"
 
-const DefaultGroupDeliverCount = 4
-
 type Config struct {
 	port                 int
 	sslPort              int
 	mysqldbDatasource    string
 	mysqldbAppdatasource string
-	pendingRoot          string
-
-	kefuAppid int64
 
 	redisAddress  string
 	redisPassword string
@@ -30,14 +25,11 @@ type Config struct {
 	certFile   string
 	keyFile    string
 
-	storageRpcAddrs      []string
-	groupStorageRpcAddrs []string
-	routeAddrs           []string
-	groupRouteAddrs      []string //可选配置项， 超群群的route server
+	storageRpcAddrs []string
+	routeAddrs      []string
 
-	groupDeliverCount int    //群组消息投递并发数量,默认4
-	wordFile          string //关键词字典文件
-	syncSelf          bool   //是否同步自己发送的消息
+	wordFile string //关键词字典文件
+	syncSelf bool   //是否同步自己发送的消息
 }
 
 func getInt(appCfg map[string]string, key string) int {
@@ -97,14 +89,11 @@ func readCfg(cfgPath string) *Config {
 	db := getOptInt(appCfg, "redis_db")
 	config.redisDb = int(db)
 
-	config.pendingRoot = getString(appCfg, "pending_root")
 	config.mysqldbDatasource = getString(appCfg, "mysqldb_source")
 	config.socketIoAddress = getString(appCfg, "socket_io_address")
 	config.tlsAddress = getOptString(appCfg, "tls_address")
 	config.certFile = getOptString(appCfg, "cert_file")
 	config.keyFile = getOptString(appCfg, "key_file")
-
-	config.kefuAppid = getOptInt(appCfg, "kefu_appid")
 
 	str := getString(appCfg, "storage_rpc_pool")
 	config.storageRpcAddrs = strings.Split(str, " ")
@@ -112,42 +101,10 @@ func readCfg(cfgPath string) *Config {
 		log.Fatal("storage pool config")
 	}
 
-	str = getOptString(appCfg, "group_storage_rpc_pool")
-	if str != "" {
-		config.groupStorageRpcAddrs = strings.Split(str, " ")
-		//check repeat
-		for _, addr := range config.groupStorageRpcAddrs {
-			for _, addr2 := range config.storageRpcAddrs {
-				if addr == addr2 {
-					log.Fatal("stroage and group storage address repeat")
-				}
-			}
-		}
-	}
-
 	str = getString(appCfg, "route_pool")
 	config.routeAddrs = strings.Split(str, " ")
 	if len(config.routeAddrs) == 0 {
 		log.Fatal("route pool config")
-	}
-
-	str = getOptString(appCfg, "group_route_pool")
-	if str != "" {
-		config.groupRouteAddrs = strings.Split(str, " ")
-
-		//check repeat group_route_addrs and route_addrs
-		for _, addr := range config.groupRouteAddrs {
-			for _, addr2 := range config.routeAddrs {
-				if addr == addr2 {
-					log.Fatal("route and group route repeat")
-				}
-			}
-		}
-	}
-
-	config.groupDeliverCount = int(getOptInt(appCfg, "group_deliver_count"))
-	if config.groupDeliverCount == 0 {
-		config.groupDeliverCount = DefaultGroupDeliverCount
 	}
 
 	config.wordFile = getOptString(appCfg, "word_file")

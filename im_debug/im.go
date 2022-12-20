@@ -7,8 +7,6 @@ import "time"
 import "runtime"
 import "math/rand"
 import "net/http"
-import "path"
-import "sync/atomic"
 import "crypto/tls"
 import "github.com/gomodule/redigo/redis"
 import log "github.com/golang/glog"
@@ -27,35 +25,23 @@ var (
 //storage server,  peer, group, customer message
 var rpcClients []*gorpc.DispatcherClient
 
-//super group storage server
-var groupRpcClients []*gorpc.DispatcherClient
-
 //route server
 var routeChannels []*Channel
 
-//super group route server
-var groupRouteChannels []*Channel
-
 var appRoute *AppRoute
-var groupManager *GroupManager
 var redisPool *redis.Pool
 
 var config *Config
 var serverSummary *ServerSummary
 
 var syncC chan *SyncHistory
-var groupSyncC chan *SyncGroupHistory
 
-//round-robin
-var currentDeliverIndex uint64
-var groupMessageDelivers []*GroupMessageDeliver
 var filter *sensitive.Filter
 
 func init() {
 	appRoute = NewAppRoute()
 	serverSummary = NewServerSummary()
 	syncC = make(chan *SyncHistory, 100)
-	groupSyncC = make(chan *SyncGroupHistory, 100)
 }
 
 func handleClient(conn net.Conn) {
@@ -157,15 +143,6 @@ func GetStorageRPCClient(uid int64) *gorpc.DispatcherClient {
 	return rpcClients[index]
 }
 
-// GetGroupStorageRPCClient 超级群消息
-func GetGroupStorageRPCClient(groupId int64) *gorpc.DispatcherClient {
-	if groupId < 0 {
-		groupId = -groupId
-	}
-	index := groupId % int64(len(groupRpcClients))
-	return groupRpcClients[index]
-}
-
 func GetChannel(uid int64) *Channel {
 	if uid < 0 {
 		uid = -uid
@@ -174,50 +151,12 @@ func GetChannel(uid int64) *Channel {
 	return routeChannels[index]
 }
 
-func GetGroupChannel(groupId int64) *Channel {
-	if groupId < 0 {
-		groupId = -groupId
-	}
-	index := groupId % int64(len(groupRouteChannels))
-	return groupRouteChannels[index]
-}
-
 func GetRoomChannel(roomId int64) *Channel {
 	if roomId < 0 {
 		roomId = -roomId
 	}
 	index := roomId % int64(len(routeChannels))
 	return routeChannels[index]
-}
-
-func GetGroupMessageDeliver(groupId int64) *GroupMessageDeliver {
-	if groupId < 0 {
-		groupId = -groupId
-	}
-
-	deliverIndex := atomic.AddUint64(&currentDeliverIndex, 1)
-	index := deliverIndex % uint64(len(groupMessageDelivers))
-	return groupMessageDelivers[index]
-}
-
-func SaveGroupMessage(appid int64, gid int64, deviceId int64, msg *Message) (int64, error) {
-	dc := GetGroupStorageRPCClient(gid)
-
-	gm := &GroupMessage{
-		Appid:    appid,
-		GroupId:  gid,
-		DeviceId: deviceId,
-		Cmd:      int32(msg.cmd),
-		Raw:      msg.ToData(),
-	}
-	resp, err := dc.Call("SaveGroupMessage", gm)
-	if err != nil {
-		log.Warning("save group message err:", err)
-		return 0, err
-	}
-	msgid := resp.(int64)
-	log.Infof("save group message:%d %d %d\n", appid, gid, msgid)
-	return msgid, nil
 }
 
 func SaveMessage(appid int64, uid int64, deviceId int64, m *Message) (int64, error) {
@@ -242,31 +181,6 @@ func SaveMessage(appid int64, uid int64, deviceId int64, m *Message) (int64, err
 	return msgid, nil
 }
 
-// PushGroupMessage 超级群，离线消息推送
-func PushGroupMessage(appid int64, groupId int64, m *Message) {
-	now := time.Now().UnixNano()
-	amsg := &AppMessage{appid: appid, receiver: groupId, msgid: 0, timestamp: now, message: m}
-
-	group := groupManager.FindGroup(amsg.receiver)
-	if group == nil {
-		log.Warningf("can't dispatch group message, appid:%d group id:%d", amsg.appid, amsg.receiver)
-		return
-	}
-
-	channels := make(map[*Channel]struct{})
-	members := group.Members()
-	for member := range members {
-		channel := GetChannel(member)
-		if _, ok := channels[channel]; !ok {
-			channels[channel] = struct{}{}
-		}
-	}
-
-	for channel := range channels {
-		channel.Publish(amsg)
-	}
-}
-
 // PushMessage 离线消息推送
 func PushMessage(appid int64, uid int64, m *Message) {
 	PublishMessage(appid, uid, m)
@@ -277,21 +191,6 @@ func PublishMessage(appid int64, uid int64, m *Message) {
 	amsg := &AppMessage{appid: appid, receiver: uid, msgid: 0, timestamp: now, message: m}
 	channel := GetChannel(uid)
 	channel.Publish(amsg)
-}
-
-func PublishGroupMessage(appid int64, groupId int64, msg *Message) {
-	now := time.Now().UnixNano()
-	amsg := &AppMessage{appid: appid, receiver: groupId, msgid: 0, timestamp: now, message: msg}
-	channel := GetGroupChannel(groupId)
-	channel.PublishGroup(amsg)
-}
-
-func SendAppGroupMessage(appid int64, groupId int64, msg *Message) {
-	now := time.Now().UnixNano()
-	amsg := &AppMessage{appid: appid, receiver: groupId, msgid: 0, timestamp: now, message: msg}
-	channel := GetGroupChannel(groupId)
-	channel.PublishGroup(amsg)
-	DispatchGroupMessage(amsg)
 }
 
 func SendAppMessage(appid int64, uid int64, msg *Message) {
@@ -370,39 +269,6 @@ func DispatchRoomMessage(amsg *AppMessage) {
 	}
 }
 
-func DispatchGroupMessage(amsg *AppMessage) {
-	now := time.Now().UnixNano()
-	d := now - amsg.timestamp
-	log.Infof("dispatch group message:%s %d %d", Command(amsg.message.cmd), amsg.message.flag, d)
-	if d > int64(time.Second) {
-		log.Warning("dispatch group message slow...")
-	}
-
-	group := groupManager.FindGroup(amsg.receiver)
-	if group == nil {
-		log.Warningf("can't dispatch group message, appid:%d group id:%d", amsg.appid, amsg.receiver)
-		return
-	}
-
-	route := appRoute.FindRoute(amsg.appid)
-	if route == nil {
-		log.Warningf("can't dispatch app message, appid:%d uid:%d cmd:%s", amsg.appid, amsg.receiver, Command(amsg.message.cmd))
-		return
-	}
-
-	members := group.Members()
-	for member := range members {
-		clients := route.FindClientSet(member)
-		if len(clients) == 0 {
-			continue
-		}
-
-		for c, _ := range clients {
-			c.EnqueueNonBlockMessage(amsg.message)
-		}
-	}
-}
-
 type loggingHandler struct {
 	handler http.Handler
 }
@@ -417,15 +283,12 @@ func StartHttpServer(addr string) {
 	http.HandleFunc("/stack", Stack)
 
 	//rpc function
-	http.HandleFunc("/post_group_notification", PostGroupNotification)
 	http.HandleFunc("/post_im_message", PostIMMessage)
 	http.HandleFunc("/load_latest_message", LoadLatestMessage)
 	http.HandleFunc("/load_history_message", LoadHistoryMessage)
 	http.HandleFunc("/post_system_message", SendSystemMessage)
 	http.HandleFunc("/post_notification", SendNotification)
 	http.HandleFunc("/post_room_message", SendRoomMessage)
-	http.HandleFunc("/post_customer_message", SendCustomerMessage)
-	http.HandleFunc("/post_customer_support_message", SendCustomerSupportMessage)
 	http.HandleFunc("/post_realtime_message", SendRealtimeMessage)
 	http.HandleFunc("/init_message_queue", InitMessageQueue)
 	http.HandleFunc("/get_offline_count", GetOfflineCount)
@@ -449,14 +312,6 @@ func SyncKeyService() {
 				SaveSyncKey(s.Appid, s.Uid, s.LastMsgid)
 			}
 			break
-		case s := <-groupSyncC:
-			origin := GetGroupSyncKey(s.Appid, s.Uid, s.GroupId)
-			if s.LastMsgid > origin {
-				log.Infof("save group sync key:%d %d %d %d",
-					s.Appid, s.Uid, s.GroupId, s.LastMsgid)
-				SaveGroupSyncKey(s.Appid, s.Uid, s.GroupId, s.LastMsgid)
-			}
-			break
 		}
 	}
 }
@@ -476,12 +331,8 @@ func main() {
 	log.Infof("redis address:%s password:%s db:%d\n", config.redisAddress, config.redisPassword, config.redisDb)
 	log.Info("storage addresses:", config.storageRpcAddrs)
 	log.Info("route addressed:", config.routeAddrs)
-	log.Info("group route addressed:", config.groupRouteAddrs)
-	log.Info("kefu appid:", config.kefuAppid)
-	log.Info("pending root:", config.pendingRoot)
 	log.Infof("socket io address:%s tls_address:%s cert file:%s key file:%s",
 		config.socketIoAddress, config.tlsAddress, config.certFile, config.keyFile)
-	log.Info("group deliver count:", config.groupDeliverCount)
 	log.Info("sync self:", config.syncSelf)
 
 	redisPool = NewRedisPool(config.redisAddress, config.redisPassword, config.redisDb)
@@ -495,9 +346,7 @@ func main() {
 
 		dispatcher := gorpc.NewDispatcher()
 		dispatcher.AddFunc("SyncMessage", SyncMessageInterface)
-		dispatcher.AddFunc("SyncGroupMessage", SyncGroupMessageInterface)
 		dispatcher.AddFunc("SavePeerMessage", SavePeerMessageInterface)
-		dispatcher.AddFunc("SaveGroupMessage", SaveGroupMessageInterface)
 		dispatcher.AddFunc("GetLatestMessage", GetLatestMessageInterface)
 
 		dc := dispatcher.NewFuncClient(c)
@@ -505,62 +354,16 @@ func main() {
 		rpcClients = append(rpcClients, dc)
 	}
 
-	if len(config.groupStorageRpcAddrs) > 0 {
-		groupRpcClients = make([]*gorpc.DispatcherClient, 0)
-		for _, addr := range config.groupStorageRpcAddrs {
-			c := &gorpc.Client{
-				Conns: 4,
-				Addr:  addr,
-			}
-			c.Start()
-
-			dispatcher := gorpc.NewDispatcher()
-			dispatcher.AddFunc("SyncMessage", SyncMessageInterface)
-			dispatcher.AddFunc("SyncGroupMessage", SyncGroupMessageInterface)
-			dispatcher.AddFunc("SavePeerMessage", SavePeerMessageInterface)
-			dispatcher.AddFunc("SaveGroupMessage", SaveGroupMessageInterface)
-
-			dc := dispatcher.NewFuncClient(c)
-
-			groupRpcClients = append(groupRpcClients, dc)
-		}
-	} else {
-		groupRpcClients = rpcClients
-	}
-
 	routeChannels = make([]*Channel, 0)
 	for _, addr := range config.routeAddrs {
-		channel := NewChannel(addr, DispatchAppMessage, DispatchGroupMessage, DispatchRoomMessage)
+		channel := NewChannel(addr, DispatchAppMessage, DispatchRoomMessage)
 		channel.Start()
 		routeChannels = append(routeChannels, channel)
-	}
-
-	if len(config.groupRouteAddrs) > 0 {
-		groupRouteChannels = make([]*Channel, 0)
-		for _, addr := range config.groupRouteAddrs {
-			channel := NewChannel(addr, DispatchAppMessage, DispatchGroupMessage, DispatchRoomMessage)
-			channel.Start()
-			groupRouteChannels = append(groupRouteChannels, channel)
-		}
-	} else {
-		groupRouteChannels = routeChannels
 	}
 
 	if len(config.wordFile) > 0 {
 		filter = sensitive.New()
 		filter.LoadWordDict(config.wordFile)
-	}
-
-	groupManager = NewGroupManager()
-	groupManager.Start()
-
-	groupMessageDelivers = make([]*GroupMessageDeliver, config.groupDeliverCount)
-	for i := 0; i < config.groupDeliverCount; i++ {
-		q := fmt.Sprintf("q%d", i)
-		r := path.Join(config.pendingRoot, q)
-		deliver := NewGroupMessageDeliver(r)
-		deliver.Start()
-		groupMessageDelivers[i] = deliver
 	}
 
 	go ListenRedis()

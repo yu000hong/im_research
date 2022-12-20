@@ -49,59 +49,7 @@ func (client *Connection) isSender(msg *Message, deviceId int64) bool {
 			return true
 		}
 	}
-
-	if msg.cmd == MsgCustomer {
-		m := msg.body.(*CustomerMessage)
-		if m.customerAppid == client.appid &&
-			m.customerId == client.uid &&
-			deviceId == client.deviceId {
-			return true
-		}
-	}
-
-	if msg.cmd == MsgCustomerSupport {
-		m := msg.body.(*CustomerMessage)
-		if config.kefuAppid == client.appid &&
-			m.sellerId == client.uid &&
-			deviceId == client.deviceId {
-			return true
-		}
-	}
 	return false
-}
-
-// SendGroupMessage 发送超级群消息
-func (client *Connection) SendGroupMessage(groupId int64, msg *Message) {
-	appid := client.appid
-
-	PublishGroupMessage(appid, groupId, msg)
-
-	group := groupManager.FindGroup(groupId)
-	if group == nil {
-		log.Warningf("can't send group message, appid:%d uid:%d cmd:%s", appid, groupId, Command(msg.cmd))
-		return
-	}
-
-	route := appRoute.FindRoute(appid)
-	if route == nil {
-		log.Warningf("can't send group message, appid:%d uid:%d cmd:%s", appid, groupId, Command(msg.cmd))
-		return
-	}
-
-	members := group.Members()
-	for member := range members {
-		clients := route.FindClientSet(member)
-		if len(clients) == 0 {
-			continue
-		}
-
-		for c, _ := range clients {
-			if &c.Connection == client {
-				continue
-			}
-			c.EnqueueNonBlockMessage(msg)
-		}
-	}
 }
 
 func (client *Connection) SendMessage(uid int64, msg *Message) bool {
@@ -219,9 +167,10 @@ func (client *Connection) read() *Message {
 		return ReceiveClientMessage(conn)
 	} else if conn, ok := client.conn.(engineio.Conn); ok {
 		return ReadEngineIOMessage(conn)
-	} else if conn, ok := client.conn.(websocket.Conn); ok {
-		return ReadWebsocketMessage(&conn)
+	} else if conn, ok := client.conn.(*websocket.Conn); ok {
+		return ReadWebsocketMessage(conn)
 	}
+	log.Infof("conn type: %T", client.conn)
 	return nil
 }
 
