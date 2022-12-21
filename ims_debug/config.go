@@ -4,18 +4,14 @@ import "strconv"
 import "log"
 import "github.com/richmonkey/cfg"
 
-// GROUP_OFFLINE_LIMIT 超级群离线消息数量限制,超过的部分会被丢弃
-const GROUP_OFFLINE_LIMIT = 100
+// OfflineDefaultLimit 离线消息返回的数量限制
+const OfflineDefaultLimit = 3000
 
-// OFFLINE_DEFAULT_LIMIT 离线消息返回的数量限制
-const OFFLINE_DEFAULT_LIMIT = 3000
-
-const GROUP_OFFLINE_DEFAULT_LIMIT = 0
+const GroupOfflineDefaultLimit = 0
 
 type StorageConfig struct {
 	rpcListen         string
 	storageRoot       string
-	kefuAppid         int64
 	httpListenAddress string
 
 	syncListen    string
@@ -76,11 +72,10 @@ func readStorageCfg(cfgPath string) *StorageConfig {
 	config.rpcListen = getString(appCfg, "rpc_listen")
 	config.httpListenAddress = getOptString(appCfg, "http_listen_address")
 	config.storageRoot = getString(appCfg, "storage_root")
-	config.kefuAppid = getInt(appCfg, "kefu_appid")
 	config.syncListen = getString(appCfg, "sync_listen")
 	config.masterAddress = getOptString(appCfg, "master_address")
 	config.isPushSystem = getOptInt(appCfg, "is_push_system", 0) == 1
-	config.limit = int(getOptInt(appCfg, "limit", OFFLINE_DEFAULT_LIMIT))
-	config.groupLimit = int(getOptInt(appCfg, "group_limit", GROUP_OFFLINE_DEFAULT_LIMIT))
+	config.limit = int(getOptInt(appCfg, "limit", OfflineDefaultLimit))
+	config.groupLimit = int(getOptInt(appCfg, "group_limit", GroupOfflineDefaultLimit))
 	return config
 }

@@ -111,11 +111,6 @@ func ReceiveMessage(conn io.Reader) *Message {
 	return ReceiveLimitMessage(conn, 32*1024, false)
 }
 
-// ReceiveClientMessage 接受客户端消息(external messages)
-func ReceiveClientMessage(conn io.Reader) *Message {
-	return ReceiveLimitMessage(conn, 32*1024, true)
-}
-
 // ReceiveStorageSyncMessage 消息大小限制在1M
 func ReceiveStorageSyncMessage(conn io.Reader) *Message {
 	return ReceiveLimitMessage(conn, 32*1024*1024, false)

@@ -8,14 +8,6 @@ type PeerMessage struct {
 	Raw      []byte
 }
 
-type GroupMessage struct {
-	Appid    int64
-	GroupId  int64
-	DeviceId int64
-	Cmd      int32
-	Raw      []byte
-}
-
 type HistoryMessage struct {
 	Msgid    int64
 	DeviceId int64 //消息发送者所在的设备ID
@@ -28,22 +20,11 @@ type PeerHistoryMessage struct {
 	LastMsgID int64
 }
 
-type GroupHistoryMessage PeerHistoryMessage
-
 type SyncHistory struct {
 	Appid     int64
 	Uid       int64
 	DeviceId  int64
 	LastMsgid int64
-}
-
-type SyncGroupHistory struct {
-	AppId     int64
-	Uid       int64
-	DeviceId  int64
-	GroupId   int64
-	LastMsgid int64
-	Timestamp int32
 }
 
 type HistoryRequest struct {
@@ -56,15 +37,7 @@ func SyncMessageInterface(addr string, syncKey *SyncHistory) *PeerHistoryMessage
 	return nil
 }
 
-func SyncGroupMessageInterface(addr string, syncKey *SyncGroupHistory) *GroupHistoryMessage {
-	return nil
-}
-
 func SavePeerMessageInterface(addr string, m *PeerMessage) (int64, error) {
-	return 0, nil
-}
-
-func SaveGroupMessageInterface(addr string, m *GroupMessage) (int64, error) {
 	return 0, nil
 }
 

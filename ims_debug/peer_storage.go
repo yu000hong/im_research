@@ -20,6 +20,7 @@ type UserIndex struct {
 
 //在取离线消息时，可以对群组消息和点对点消息分别获取，
 //这样可以做到分别控制点对点消息和群组消息读取量，避免单次读取超量的离线消息
+
 type PeerStorage struct {
 	*StorageFile
 
@@ -34,18 +35,18 @@ func NewPeerStorage(f *StorageFile) *PeerStorage {
 	return storage
 }
 
-func (peerStorage *PeerStorage) SavePeerMessage(appid int64, uid int64, device_id int64, msg *Message) int64 {
+func (peerStorage *PeerStorage) SavePeerMessage(appid int64, uid int64, deviceId int64, msg *Message) int64 {
 	peerStorage.mutex.Lock()
 	defer peerStorage.mutex.Unlock()
 	msgid := peerStorage.saveMessage(msg)
 
 	lastId, lastPeerId := peerStorage.getLastMessageID(appid, uid)
 
-	off := &OfflineMessage2{appid: appid, receiver: uid, msgid: msgid, deviceId: device_id, prevMsgid: lastId, prevPeerMsgid: lastPeerId}
+	off := &OfflineMessage2{appid: appid, receiver: uid, msgid: msgid, deviceId: deviceId, prevMsgid: lastId, prevPeerMsgid: lastPeerId}
 
 	var flag int
 	if peerStorage.isGroupMessage(msg) {
-		flag = MESSAGE_FLAG_GROUP
+		flag = MessageFlagGroup
 	}
 	m := &Message{cmd: MSG_OFFLINE_V2, flag: flag, body: off}
 	lastId = peerStorage.saveMessage(m)
@@ -66,7 +67,6 @@ func (peerStorage *PeerStorage) getLastMessageID(appid int64, receiver int64) (i
 	return 0, 0
 }
 
-//lock
 func (peerStorage *PeerStorage) GetLastMessageID(appid int64, receiver int64) (int64, int64) {
 	peerStorage.mutex.Lock()
 	defer peerStorage.mutex.Unlock()
@@ -80,11 +80,10 @@ func (peerStorage *PeerStorage) setLastMessageID(appid int64, receiver int64, la
 	peerStorage.messageIndex[id] = ui
 
 	if lastId > peerStorage.lastId {
-		peerStorage.lastId = lastPeerId
+		peerStorage.lastId = lastPeerId //TODO lastId?
 	}
 }
 
-//lock
 func (peerStorage *PeerStorage) SetLastMessageID(appid int64, receiver int64, lastId int64, lastPeerId int64) {
 	peerStorage.mutex.Lock()
 	defer peerStorage.mutex.Unlock()
@@ -95,6 +94,7 @@ func (peerStorage *PeerStorage) SetLastMessageID(appid int64, receiver int64, la
 //groupLimit&limit:0 表示无限制
 //消息超过group_limit后，只获取点对点消息
 //总消息数限制在limit
+
 func (peerStorage *PeerStorage) LoadHistoryMessages(appid int64, receiver int64, syncMsgid int64, groupLimit int, limit int) ([]*EMessage, int64) {
 	var lastMsgid int64
 	lastId, _ := peerStorage.GetLastMessageID(appid, receiver)
@@ -137,12 +137,12 @@ func (peerStorage *PeerStorage) LoadHistoryMessages(appid int64, receiver int64,
 		if msg == nil {
 			break
 		}
-		if msg.cmd != MSG_GROUP_IM &&
-			msg.cmd != MSG_GROUP_NOTIFICATION &&
-			msg.cmd != MSG_IM &&
-			msg.cmd != MSG_CUSTOMER &&
-			msg.cmd != MSG_CUSTOMER_SUPPORT &&
-			msg.cmd != MSG_SYSTEM {
+		if msg.cmd != MsgGroupIm &&
+			msg.cmd != MsgGroupNotification &&
+			msg.cmd != MsgIm &&
+			msg.cmd != MsgCustomer &&
+			msg.cmd != MsgCustomerSupport &&
+			msg.cmd != MsgSystem {
 			if groupLimit > 0 && len(messages) >= groupLimit {
 				lastId = off.prevPeerMsgid
 			} else {
@@ -210,11 +210,11 @@ func (peerStorage *PeerStorage) LoadLatestMessages(appid int64, receiver int64, 
 		if msg == nil {
 			break
 		}
-		if msg.cmd != MSG_GROUP_IM &&
-			msg.cmd != MSG_GROUP_NOTIFICATION &&
-			msg.cmd != MSG_IM &&
-			msg.cmd != MSG_CUSTOMER &&
-			msg.cmd != MSG_CUSTOMER_SUPPORT {
+		if msg.cmd != MsgGroupIm &&
+			msg.cmd != MsgGroupNotification &&
+			msg.cmd != MsgIm &&
+			msg.cmd != MsgCustomer &&
+			msg.cmd != MsgCustomerSupport {
 			lastId = prevMsgid
 			continue
 		}
@@ -230,29 +230,13 @@ func (peerStorage *PeerStorage) LoadLatestMessages(appid int64, receiver int64, 
 }
 
 func (peerStorage *PeerStorage) isGroupMessage(msg *Message) bool {
-	return msg.cmd == MSG_GROUP_IM || msg.flag&MESSAGE_FLAG_GROUP != 0
+	return msg.cmd == MsgGroupIm || msg.flag&MessageFlagGroup != 0
 }
 
 func (peerStorage *PeerStorage) isSender(msg *Message, appid int64, uid int64) bool {
-	if msg.cmd == MSG_IM || msg.cmd == MSG_GROUP_IM {
+	if msg.cmd == MsgIm || msg.cmd == MsgGroupIm {
 		m := msg.body.(*IMMessage)
 		if m.sender == uid {
-			return true
-		}
-	}
-
-	if msg.cmd == MSG_CUSTOMER {
-		m := msg.body.(*CustomerMessage)
-		if m.customerAppid == appid &&
-			m.customerId == uid {
-			return true
-		}
-	}
-
-	if msg.cmd == MSG_CUSTOMER_SUPPORT {
-		m := msg.body.(*CustomerMessage)
-		if config.kefuAppid == appid &&
-			m.sellerId == uid {
 			return true
 		}
 	}
@@ -335,7 +319,7 @@ func (peerStorage *PeerStorage) createPeerIndex() {
 				blockNo := i
 				msgid = int64(blockNo)*BlockSize + msgid
 				lastPeerId := msgid
-				if (msg.flag & MESSAGE_FLAG_GROUP) != 0 {
+				if (msg.flag & MessageFlagGroup) != 0 {
 					_, lastPeerId = peerStorage.getLastMessageID(off.appid, off.receiver)
 				}
 				peerStorage.setLastMessageID(off.appid, off.receiver, msgid, lastPeerId)
@@ -350,7 +334,7 @@ func (peerStorage *PeerStorage) createPeerIndex() {
 func (peerStorage *PeerStorage) repairPeerIndex() {
 	log.Info("repair message index begin:", time.Now().UnixNano())
 
-	first := peerStorage.getBlockNO(peerStorage.lastId)
+	first := peerStorage.getBlockNo(peerStorage.lastId)
 	off := peerStorage.getBlockOffset(peerStorage.lastId)
 
 	for i := first; i <= peerStorage.blockNo; i++ {
@@ -390,7 +374,7 @@ func (peerStorage *PeerStorage) repairPeerIndex() {
 				blockNo := i
 				msgid = int64(blockNo)*BlockSize + msgid
 				lastPeerId := msgid
-				if (msg.flag & MESSAGE_FLAG_GROUP) != 0 {
+				if (msg.flag & MessageFlagGroup) != 0 {
 					_, lastPeerId = peerStorage.getLastMessageID(off.appid, off.receiver)
 				}
 				peerStorage.setLastMessageID(off.appid, off.receiver, msgid, lastPeerId)
@@ -413,8 +397,8 @@ func (peerStorage *PeerStorage) readPeerIndex() bool {
 		return false
 	}
 	defer file.Close()
-	const INDEX_SIZE = 32
-	data := make([]byte, INDEX_SIZE*1000)
+	const IndexSize = 32
+	data := make([]byte, IndexSize*1000)
 
 	for {
 		n, err := file.Read(data)
@@ -424,9 +408,9 @@ func (peerStorage *PeerStorage) readPeerIndex() bool {
 			}
 			break
 		}
-		n = n - n%INDEX_SIZE
+		n = n - n%IndexSize
 		buffer := bytes.NewBuffer(data[:n])
-		for i := 0; i < n/INDEX_SIZE; i++ {
+		for i := 0; i < n/IndexSize; i++ {
 			id := UserID{}
 			var msgid int64
 			var peerMsgid int64
@@ -524,7 +508,7 @@ func (peerStorage *PeerStorage) execMessage(msg *Message, msgid int64) {
 	} else if msg.cmd == MSG_OFFLINE_V2 {
 		off := msg.body.(*OfflineMessage2)
 		lastPeerId := msgid
-		if (msg.flag & MESSAGE_FLAG_GROUP) != 0 {
+		if (msg.flag & MessageFlagGroup) != 0 {
 			_, lastPeerId = peerStorage.getLastMessageID(off.appid, off.receiver)
 		}
 		peerStorage.setLastMessageID(off.appid, off.receiver, msgid, lastPeerId)

@@ -34,14 +34,8 @@ type StorageFile struct {
 	lastSavedId int64 //索引文件中最大的消息id
 }
 
-func onFileEvicted(key lru.Key, value interface{}) {
-	f := value.(*os.File)
-	_ = f.Close()
-}
-
 func NewStorageFile(root string) *StorageFile {
 	storage := new(StorageFile)
-
 	storage.root = root
 	storage.files = lru.New(LruSize)
 	storage.files.OnEvicted = onFileEvicted
@@ -157,17 +151,17 @@ func (storage *StorageFile) openReadFile(blockNo int) *os.File {
 	}
 	if fileSize < HeaderSize && fileSize > 0 {
 		if err != nil {
-			log.Fatal("file header is't complete")
+			log.Fatal("file header isn't complete")
 		}
 	}
 	return file
 }
 
-func (storage *StorageFile) getMsgId(blockNo int, offset int) int64 {
+func (storage *StorageFile) getMsgid(blockNo int, offset int) int64 {
 	return int64(blockNo)*BlockSize + int64(offset)
 }
 
-func (storage *StorageFile) getBlockNO(msgid int64) int {
+func (storage *StorageFile) getBlockNo(msgid int64) int {
 	return int(msgid / BlockSize)
 }
 
@@ -223,7 +217,7 @@ func (storage *StorageFile) ReadMessage(file *os.File) *Message {
 func (storage *StorageFile) LoadMessage(msgid int64) *Message {
 	storage.mutex.Lock()
 	defer storage.mutex.Unlock()
-	blockNo := storage.getBlockNO(msgid)
+	blockNo := storage.getBlockNo(msgid)
 	offset := storage.getBlockOffset(msgid)
 
 	file := storage.getFile(blockNo)
@@ -351,4 +345,9 @@ func (storage *StorageFile) Flush() {
 		storage.dirty = false
 		log.Info("sync storage file success")
 	}
+}
+
+func onFileEvicted(key lru.Key, value interface{}) {
+	f := value.(*os.File)
+	_ = f.Close()
 }

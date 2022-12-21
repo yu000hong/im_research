@@ -119,11 +119,11 @@ func (master *Master) SendBatch(cache []*EMessage) {
 
 func (master *Master) Run() {
 	cache := make([]*EMessage, 0, 1000)
-	var first_ts time.Time
+	var firstTs time.Time
 	for {
 		t := 60 * time.Second
 		if len(cache) > 0 {
-			ts := first_ts.Add(time.Second * 1)
+			ts := firstTs.Add(time.Second * 1)
 			now := time.Now()
 
 			if ts.After(now) {
@@ -137,7 +137,7 @@ func (master *Master) Run() {
 		case emsg := <-master.ewt:
 			cache = append(cache, emsg)
 			if len(cache) == 1 {
-				first_ts = time.Now()
+				firstTs = time.Now()
 			}
 			if len(cache) >= 1000 {
 				master.SendBatch(cache)

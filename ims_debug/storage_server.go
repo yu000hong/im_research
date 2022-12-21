@@ -11,7 +11,6 @@ import "os"
 import "net/http"
 import "os/signal"
 import "syscall"
-import "github.com/gomodule/redigo/redis"
 import "github.com/valyala/gorpc"
 
 var (
@@ -54,7 +53,7 @@ func Listen(f func(*net.TCPConn), listenAddr string) {
 
 func handleSyncClient(conn *net.TCPConn) {
 	_ = conn.SetKeepAlive(true)
-	_ = conn.SetKeepAlivePeriod(time.Duration(10 * 60 * time.Second))
+	_ = conn.SetKeepAlivePeriod(10 * 60 * time.Second)
 	client := NewSyncClient(conn)
 	client.Run()
 }
@@ -82,8 +81,8 @@ func waitSignal() {
 	}
 }
 
-// FlushLoop flush storage file
-func FlushLoop() {
+// FlushStorageLoop flush storage file
+func FlushStorageLoop() {
 	ticker := time.NewTicker(time.Millisecond * 1000)
 	for range ticker.C {
 		storage.Flush()
@@ -96,34 +95,6 @@ func FlushIndexLoop() {
 	ticker := time.NewTicker(time.Second * 60 * 5)
 	for range ticker.C {
 		storage.FlushIndex()
-	}
-}
-
-func NewRedisPool(server, password string, db int) *redis.Pool {
-	return &redis.Pool{
-		MaxIdle:     100,
-		MaxActive:   500,
-		IdleTimeout: 480 * time.Second,
-		Dial: func() (redis.Conn, error) {
-			timeout := time.Duration(2) * time.Second
-			c, err := redis.DialTimeout("tcp", server, timeout, 0, 0)
-			if err != nil {
-				return nil, err
-			}
-			if len(password) > 0 {
-				if _, err := c.Do("AUTH", password); err != nil {
-					_ = c.Close()
-					return nil, err
-				}
-			}
-			if db > 0 && db < 16 {
-				if _, err := c.Do("SELECT", db); err != nil {
-					_ = c.Close()
-					return nil, err
-				}
-			}
-			return c, err
-		},
 	}
 }
 
@@ -148,12 +119,10 @@ func StartHttpServer(addr string) {
 	}
 }
 
-func ListenRPCClient() {
+func ListenRpcClient() {
 	dispatcher := gorpc.NewDispatcher()
 	dispatcher.AddFunc("SyncMessage", SyncMessage)
-	dispatcher.AddFunc("SyncGroupMessage", SyncGroupMessage)
 	dispatcher.AddFunc("SavePeerMessage", SavePeerMessage)
-	dispatcher.AddFunc("SaveGroupMessage", SaveGroupMessage)
 	dispatcher.AddFunc("GetNewCount", GetNewCount)
 	dispatcher.AddFunc("GetLatestMessage", GetLatestMessage)
 
@@ -168,7 +137,8 @@ func ListenRPCClient() {
 }
 
 func main() {
-	fmt.Printf("Version:     %s\nBuilt:       %s\nGo version:  %s\nGit branch:  %s\nGit commit:  %s\n", Version, BuildTime, GoVersion, GitBranch, GitCommitId)
+	fmt.Printf("Version:     %s\nBuilt:       %s\nGo version:  %s\nGit branch:  %s\nGit commit:  %s\n",
+		Version, BuildTime, GoVersion, GitBranch, GitCommitId)
 
 	rand.Seed(time.Now().UnixNano())
 	runtime.GOMAXPROCS(runtime.NumCPU())
@@ -193,8 +163,7 @@ func main() {
 		slave.Start()
 	}
 
-	//刷新storage file
-	go FlushLoop()
+	go FlushStorageLoop()
 	go FlushIndexLoop()
 	go waitSignal()
 
@@ -203,5 +172,5 @@ func main() {
 	}
 
 	go ListenSyncClient()
-	ListenRPCClient()
+	ListenRpcClient()
 }

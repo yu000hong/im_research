@@ -4,167 +4,139 @@ import "bytes"
 import "encoding/binary"
 import "fmt"
 
-const MSG_AUTH_STATUS = 3
+const MsgAuthStatus = 3
+const MsgIm = 4
 
-//persistent
-const MSG_IM = 4
+const MsgAck = 5
+const MsgGroupNotification = 7
+const MsgGroupIm = 8
 
-const MSG_ACK = 5
+const MsgPing = 13
+const MsgPong = 14
+const MsgAuthToken = 15
 
-//deprecated
-const MSG_RST = 6
+const MsgRt = 17
+const MsgEnterRoom = 18
+const MsgLeaveRoom = 19
+const MsgRoomIm = 20
 
-//persistent
-const MSG_GROUP_NOTIFICATION = 7
-const MSG_GROUP_IM = 8
+const MsgSystem = 21
 
-const MSG_PING = 13
-const MSG_PONG = 14
-const MSG_AUTH_TOKEN = 15
+const MsgUnreadCount = 22
 
-const MSG_RT = 17
-const MSG_ENTER_ROOM = 18
-const MSG_LEAVE_ROOM = 19
-const MSG_ROOM_IM = 20
+const MsgCustomerService = 23
 
-//persistent
-const MSG_SYSTEM = 21
+const MsgCustomer = 24        //顾客->客服
+const MsgCustomerSupport = 25 //客服->顾客
 
-const MSG_UNREAD_COUNT = 22
+const MsgSync = 26 //同步消息
+const MsgSyncBegin = 27
+const MsgSyncEnd = 28
 
-//persistent, deprecated
-const MSG_CUSTOMER_SERVICE_ = 23
+const MsgSyncNotify = 29
 
-//persistent
-const MSG_CUSTOMER = 24         //顾客->客服
-const MSG_CUSTOMER_SUPPORT = 25 //客服->顾客
+const MsgSyncGroup = 30
+const MsgSyncGroupBegin = 31
+const MsgSyncGroupEnd = 32
 
-//客户端->服务端
-const MSG_SYNC = 26 //同步消息
-//服务端->客服端
-const MSG_SYNC_BEGIN = 27
-const MSG_SYNC_END = 28
+const MsgSyncGroupNotify = 33
+const MsgSyncKey = 34
+const MsgGroupSyncKey = 35
+const MsgNotification = 36
 
-//通知客户端有新消息
-const MSG_SYNC_NOTIFY = 29
+const MsgVoipControl = 64
 
-//客户端->服务端
-const MSG_SYNC_GROUP = 30 //同步超级群消息
-//服务端->客服端
-const MSG_SYNC_GROUP_BEGIN = 31
-const MSG_SYNC_GROUP_END = 32
-
-//通知客户端有新消息
-const MSG_SYNC_GROUP_NOTIFY = 33
-
-//客服端->服务端,更新服务器的synckey
-const MSG_SYNC_KEY = 34
-const MSG_GROUP_SYNC_KEY = 35
-
-//系统通知消息, unpersistent
-const MSG_NOTIFICATION = 36
-
-const MSG_VOIP_CONTROL = 64
-
-//消息标志
-//文本消息
-const MESSAGE_FLAG_TEXT = 0x01
-
-//消息不持久化
-const MESSAGE_FLAG_UNPERSISTENT = 0x02
-
-//群组离线消息 MSG_OFFLINE使用
-const MESSAGE_FLAG_GROUP = 0x04
-
-//离线消息由当前登录的用户在当前设备发出
-const MESSAGE_FLAG_SELF = 0x08
+const MessageFlagText = 0x01
+const MessageFlagUnpersistent = 0x02
+const MessageFlagGroup = 0x04
+const MessageFlagSelf = 0x08
 
 func init() {
-	messageCreators[MSG_ACK] = func() IMessage { return new(MessageACK) }
-	messageCreators[MSG_GROUP_NOTIFICATION] = func() IMessage { return new(GroupNotification) }
+	messageCreators[MsgAck] = func() IMessage { return new(MessageACK) }
+	messageCreators[MsgGroupNotification] = func() IMessage { return new(GroupNotification) }
 
-	messageCreators[MSG_AUTH_TOKEN] = func() IMessage { return new(AuthenticationToken) }
+	messageCreators[MsgAuthToken] = func() IMessage { return new(AuthenticationToken) }
 
-	messageCreators[MSG_RT] = func() IMessage { return new(RTMessage) }
-	messageCreators[MSG_ENTER_ROOM] = func() IMessage { return new(Room) }
-	messageCreators[MSG_LEAVE_ROOM] = func() IMessage { return new(Room) }
-	messageCreators[MSG_ROOM_IM] = func() IMessage { return &RoomMessage{new(RTMessage)} }
-	messageCreators[MSG_SYSTEM] = func() IMessage { return new(SystemMessage) }
-	messageCreators[MSG_UNREAD_COUNT] = func() IMessage { return new(MessageUnreadCount) }
-	messageCreators[MSG_CUSTOMER_SERVICE_] = func() IMessage { return new(IgnoreMessage) }
+	messageCreators[MsgRt] = func() IMessage { return new(RTMessage) }
+	messageCreators[MsgEnterRoom] = func() IMessage { return new(Room) }
+	messageCreators[MsgLeaveRoom] = func() IMessage { return new(Room) }
+	messageCreators[MsgRoomIm] = func() IMessage { return &RoomMessage{new(RTMessage)} }
+	messageCreators[MsgSystem] = func() IMessage { return new(SystemMessage) }
+	messageCreators[MsgUnreadCount] = func() IMessage { return new(MessageUnreadCount) }
+	messageCreators[MsgCustomerService] = func() IMessage { return new(IgnoreMessage) }
 
-	messageCreators[MSG_CUSTOMER] = func() IMessage { return new(CustomerMessage) }
-	messageCreators[MSG_CUSTOMER_SUPPORT] = func() IMessage { return new(CustomerMessage) }
+	messageCreators[MsgCustomer] = func() IMessage { return new(CustomerMessage) }
+	messageCreators[MsgCustomerSupport] = func() IMessage { return new(CustomerMessage) }
 
-	messageCreators[MSG_SYNC] = func() IMessage { return new(SyncKey) }
-	messageCreators[MSG_SYNC_BEGIN] = func() IMessage { return new(SyncKey) }
-	messageCreators[MSG_SYNC_END] = func() IMessage { return new(SyncKey) }
-	messageCreators[MSG_SYNC_NOTIFY] = func() IMessage { return new(SyncKey) }
-	messageCreators[MSG_SYNC_KEY] = func() IMessage { return new(SyncKey) }
+	messageCreators[MsgSync] = func() IMessage { return new(SyncKey) }
+	messageCreators[MsgSyncBegin] = func() IMessage { return new(SyncKey) }
+	messageCreators[MsgSyncEnd] = func() IMessage { return new(SyncKey) }
+	messageCreators[MsgSyncNotify] = func() IMessage { return new(SyncKey) }
+	messageCreators[MsgSyncKey] = func() IMessage { return new(SyncKey) }
 
-	messageCreators[MSG_SYNC_GROUP] = func() IMessage { return new(GroupSyncKey) }
-	messageCreators[MSG_SYNC_GROUP_BEGIN] = func() IMessage { return new(GroupSyncKey) }
-	messageCreators[MSG_SYNC_GROUP_END] = func() IMessage { return new(GroupSyncKey) }
-	messageCreators[MSG_SYNC_GROUP_NOTIFY] = func() IMessage { return new(GroupSyncKey) }
-	messageCreators[MSG_GROUP_SYNC_KEY] = func() IMessage { return new(GroupSyncKey) }
+	messageCreators[MsgSyncGroup] = func() IMessage { return new(GroupSyncKey) }
+	messageCreators[MsgSyncGroupBegin] = func() IMessage { return new(GroupSyncKey) }
+	messageCreators[MsgSyncGroupEnd] = func() IMessage { return new(GroupSyncKey) }
+	messageCreators[MsgSyncGroupNotify] = func() IMessage { return new(GroupSyncKey) }
+	messageCreators[MsgGroupSyncKey] = func() IMessage { return new(GroupSyncKey) }
 
-	messageCreators[MSG_NOTIFICATION] = func() IMessage { return new(SystemMessage) }
+	messageCreators[MsgNotification] = func() IMessage { return new(SystemMessage) }
 
-	messageCreators[MSG_VOIP_CONTROL] = func() IMessage { return new(VOIPControl) }
+	messageCreators[MsgVoipControl] = func() IMessage { return new(VOIPControl) }
 
-	vmessageCreators[MSG_GROUP_IM] = func() IVersionMessage { return new(IMMessage) }
-	vmessageCreators[MSG_IM] = func() IVersionMessage { return new(IMMessage) }
+	vmessageCreators[MsgGroupIm] = func() IVersionMessage { return new(IMMessage) }
+	vmessageCreators[MsgIm] = func() IVersionMessage { return new(IMMessage) }
 
-	vmessageCreators[MSG_AUTH_STATUS] = func() IVersionMessage { return new(AuthenticationStatus) }
+	vmessageCreators[MsgAuthStatus] = func() IVersionMessage { return new(AuthenticationStatus) }
 
-	messageDescriptions[MSG_AUTH_STATUS] = "MSG_AUTH_STATUS"
-	messageDescriptions[MSG_IM] = "MSG_IM"
-	messageDescriptions[MSG_ACK] = "MSG_ACK"
-	messageDescriptions[MSG_GROUP_NOTIFICATION] = "MSG_GROUP_NOTIFICATION"
-	messageDescriptions[MSG_GROUP_IM] = "MSG_GROUP_IM"
-	messageDescriptions[MSG_PING] = "MSG_PING"
-	messageDescriptions[MSG_PONG] = "MSG_PONG"
-	messageDescriptions[MSG_AUTH_TOKEN] = "MSG_AUTH_TOKEN"
-	messageDescriptions[MSG_RT] = "MSG_RT"
-	messageDescriptions[MSG_ENTER_ROOM] = "MSG_ENTER_ROOM"
-	messageDescriptions[MSG_LEAVE_ROOM] = "MSG_LEAVE_ROOM"
-	messageDescriptions[MSG_ROOM_IM] = "MSG_ROOM_IM"
-	messageDescriptions[MSG_SYSTEM] = "MSG_SYSTEM"
-	messageDescriptions[MSG_UNREAD_COUNT] = "MSG_UNREAD_COUNT"
-	messageDescriptions[MSG_CUSTOMER_SERVICE_] = "MSG_CUSTOMER_SERVICE"
-	messageDescriptions[MSG_CUSTOMER] = "MSG_CUSTOMER"
-	messageDescriptions[MSG_CUSTOMER_SUPPORT] = "MSG_CUSTOMER_SUPPORT"
+	messageDescriptions[MsgAuthStatus] = "MSG_AUTH_STATUS"
+	messageDescriptions[MsgIm] = "MSG_IM"
+	messageDescriptions[MsgAck] = "MSG_ACK"
+	messageDescriptions[MsgGroupNotification] = "MSG_GROUP_NOTIFICATION"
+	messageDescriptions[MsgGroupIm] = "MSG_GROUP_IM"
+	messageDescriptions[MsgPing] = "MSG_PING"
+	messageDescriptions[MsgPong] = "MSG_PONG"
+	messageDescriptions[MsgAuthToken] = "MSG_AUTH_TOKEN"
+	messageDescriptions[MsgRt] = "MSG_RT"
+	messageDescriptions[MsgEnterRoom] = "MSG_ENTER_ROOM"
+	messageDescriptions[MsgLeaveRoom] = "MSG_LEAVE_ROOM"
+	messageDescriptions[MsgRoomIm] = "MSG_ROOM_IM"
+	messageDescriptions[MsgSystem] = "MSG_SYSTEM"
+	messageDescriptions[MsgUnreadCount] = "MSG_UNREAD_COUNT"
+	messageDescriptions[MsgCustomerService] = "MSG_CUSTOMER_SERVICE"
+	messageDescriptions[MsgCustomer] = "MSG_CUSTOMER"
+	messageDescriptions[MsgCustomerSupport] = "MSG_CUSTOMER_SUPPORT"
 
-	messageDescriptions[MSG_SYNC] = "MSG_SYNC"
-	messageDescriptions[MSG_SYNC_BEGIN] = "MSG_SYNC_BEGIN"
-	messageDescriptions[MSG_SYNC_END] = "MSG_SYNC_END"
-	messageDescriptions[MSG_SYNC_NOTIFY] = "MSG_SYNC_NOTIFY"
+	messageDescriptions[MsgSync] = "MSG_SYNC"
+	messageDescriptions[MsgSyncBegin] = "MSG_SYNC_BEGIN"
+	messageDescriptions[MsgSyncEnd] = "MSG_SYNC_END"
+	messageDescriptions[MsgSyncNotify] = "MSG_SYNC_NOTIFY"
 
-	messageDescriptions[MSG_SYNC_GROUP] = "MSG_SYNC_GROUP"
-	messageDescriptions[MSG_SYNC_GROUP_BEGIN] = "MSG_SYNC_GROUP_BEGIN"
-	messageDescriptions[MSG_SYNC_GROUP_END] = "MSG_SYNC_GROUP_END"
-	messageDescriptions[MSG_SYNC_GROUP_NOTIFY] = "MSG_SYNC_GROUP_NOTIFY"
+	messageDescriptions[MsgSyncGroup] = "MSG_SYNC_GROUP"
+	messageDescriptions[MsgSyncGroupBegin] = "MSG_SYNC_GROUP_BEGIN"
+	messageDescriptions[MsgSyncGroupEnd] = "MSG_SYNC_GROUP_END"
+	messageDescriptions[MsgSyncGroupNotify] = "MSG_SYNC_GROUP_NOTIFY"
 
-	messageDescriptions[MSG_NOTIFICATION] = "MSG_NOTIFICATION"
-	messageDescriptions[MSG_VOIP_CONTROL] = "MSG_VOIP_CONTROL"
+	messageDescriptions[MsgNotification] = "MSG_NOTIFICATION"
+	messageDescriptions[MsgVoipControl] = "MSG_VOIP_CONTROL"
 
-	externalMessages[MSG_AUTH_TOKEN] = true
-	externalMessages[MSG_IM] = true
-	externalMessages[MSG_ACK] = true
-	externalMessages[MSG_GROUP_IM] = true
-	externalMessages[MSG_PING] = true
-	externalMessages[MSG_PONG] = true
-	externalMessages[MSG_RT] = true
-	externalMessages[MSG_ENTER_ROOM] = true
-	externalMessages[MSG_LEAVE_ROOM] = true
-	externalMessages[MSG_ROOM_IM] = true
-	externalMessages[MSG_UNREAD_COUNT] = true
-	externalMessages[MSG_CUSTOMER] = true
-	externalMessages[MSG_CUSTOMER_SUPPORT] = true
-	externalMessages[MSG_SYNC] = true
-	externalMessages[MSG_SYNC_GROUP] = true
-	externalMessages[MSG_SYNC_KEY] = true
-	externalMessages[MSG_GROUP_SYNC_KEY] = true
+	externalMessages[MsgAuthToken] = true
+	externalMessages[MsgIm] = true
+	externalMessages[MsgAck] = true
+	externalMessages[MsgGroupIm] = true
+	externalMessages[MsgPing] = true
+	externalMessages[MsgPong] = true
+	externalMessages[MsgRt] = true
+	externalMessages[MsgEnterRoom] = true
+	externalMessages[MsgLeaveRoom] = true
+	externalMessages[MsgRoomIm] = true
+	externalMessages[MsgUnreadCount] = true
+	externalMessages[MsgCustomer] = true
+	externalMessages[MsgCustomerSupport] = true
+	externalMessages[MsgSync] = true
+	externalMessages[MsgSyncGroup] = true
+	externalMessages[MsgSyncKey] = true
+	externalMessages[MsgGroupSyncKey] = true
 }
 
 type Command int
@@ -231,7 +203,6 @@ func (message *Message) FromData(buff []byte) bool {
 
 // region IgnoreMessage
 
-//保存在磁盘中但不再需要处理的消息
 type IgnoreMessage struct {
 }
 
