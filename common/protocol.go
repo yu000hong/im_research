@@ -1,4 +1,4 @@
-package main
+package common
 
 import "io"
 import "bytes"
@@ -7,30 +7,10 @@ import log "github.com/golang/glog"
 import "errors"
 import "encoding/hex"
 
-const PlatformIos = 1
-const PlatformAndroid = 2
-const PlatformWeb = 3
-
-const DefaultVersion = 1
-const MsgHeaderSize = 12
-
-type MessageCreator func() IMessage
-
-type VersionMessageCreator func() IVersionMessage
-
-var messageDescriptions = make(map[int]string)
-
-var messageCreators = make(map[int]MessageCreator)
-
-var vmessageCreators = make(map[int]VersionMessageCreator)
-
-//true client->server
-var externalMessages [256]bool
-
 func WriteHeader(len int32, seq int32, cmd byte, version byte, flag byte, buffer io.Writer) {
 	_ = binary.Write(buffer, binary.BigEndian, len)
 	_ = binary.Write(buffer, binary.BigEndian, seq)
-	t := []byte{cmd, byte(version), flag, 0}
+	t := []byte{cmd, version, flag, 0}
 	_, _ = buffer.Write(t)
 }
 

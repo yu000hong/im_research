@@ -34,3 +34,10 @@ const MessageFlagText = 0x01         //文本消息
 const MessageFlagUnpersistent = 0x02 //消息不持久化
 const MessageFlagGroup = 0x04
 const MessageFlagSelf = 0x08 //离线消息由当前登录的用户在当前设备发出
+
+const PlatformIos = 1
+const PlatformAndroid = 2
+const PlatformWeb = 3
+
+const DefaultVersion = 1
+const MsgHeaderSize = 12
